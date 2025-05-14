@@ -123,7 +123,7 @@ const verdadoretoHandler = async (m, { conn, command, args, usedPrefix }) => {
     const chat = m.chat;
 
     if (args.length === 0) {
-        // Si no hay argumentos, presenta las opciones "Verdad" o "Reto" con botones
+        // --- Estado 1: Presentar elección Verdad/Reto ---
         const caption = `
 🃏✨ *¡Es hora de Verdad o Reto!* ✨🃏
 
@@ -132,81 +132,108 @@ const verdadoretoHandler = async (m, { conn, command, args, usedPrefix }) => {
 
         const buttons = [
             {
-                buttonId: `${usedPrefix}verdadoreto verdad`,
+                buttonId: `${usedPrefix}verdadoreto elegir verdad`, // Añadimos 'elegir' para diferenciar
                 buttonText: { displayText: "🤫 Verdad" },
                 type: 1
             },
             {
-                buttonId: `${usedPrefix}verdadoreto reto`,
+                buttonId: `${usedPrefix}verdadoreto elegir reto`, // Añadimos 'elegir' para diferenciar
                 buttonText: { displayText: "💪 Reto" },
                 type: 1
             }
         ];
 
-        // Enviar el mensaje con botones
         await conn.sendMessage(
             chat,
             {
                 text: caption,
                 buttons: buttons,
-                viewOnce: true // O false, si prefieres que los botones se queden visibles
+                viewOnce: true
             },
             { quoted: m }
         );
 
-    } else {
-        // Si hay argumentos, el usuario ha elegido
-        const choice = args[0].toLowerCase(); // 'verdad' o 'reto'
+    } else if (args[0].toLowerCase() === 'elegir' && args.length > 1) {
+        // --- Estado 2: Procesar la elección y dar la Verdad/Reto con botones Sí/No ---
+        const choice = args[1].toLowerCase(); // 'verdad' o 'reto'
         let selectedItem = '';
         let type = '';
         let responseText = '';
 
         if (choice === 'verdad') {
-            // Seleccionar una verdad aleatoria
             const randomIndex = Math.floor(Math.random() * verdades.length);
             selectedItem = verdades[randomIndex];
             type = 'Verdad';
-            // Añadir el prefijo exacto para verdad
             responseText = `Okay.\n\nEs verdad que ${selectedItem}`;
 
         } else if (choice === 'reto') {
-            // Seleccionar un reto aleatorio
-            const randomIndex = Math.random() < 0.001 ? retos.length -1 : Math.floor(Math.random() * retos.length); // Reto especial para probar
+            const randomIndex = Math.floor(Math.random() * retos.length);
             selectedItem = retos[randomIndex];
             type = 'Reto';
-            // Añadir el prefijo exacto para reto
             responseText = `Okay.\n\nTe reto a que ${selectedItem}`;
 
         } else {
-            // Opción no válida
-            return conn.reply(chat, `❌ Opción no válida. Usa *${usedPrefix}verdadoreto* para elegir entre Verdad o Reto, o selecciona los botones.`, m);
+            // Esto no debería pasar si usan los botones, pero es buena práctica
+            return conn.reply(chat, `❌ Opción no válida. Usa *${usedPrefix}verdadoreto* para empezar.`, m);
         }
 
-        // Botón para jugar de nuevo
+        // Botones para confirmar si hizo/dijo la verdad/reto
         const buttons = [
             {
-                buttonId: `${usedPrefix}verdadoreto`, // Este buttonId llama al handler sin argumentos
-                buttonText: { displayText: "🔄 Nueva Ronda" },
+                buttonId: `${usedPrefix}verdadoreto respuesta sí`, // Botón Sí
+                buttonText: { displayText: "✅ Sí" },
+                type: 1
+            },
+            {
+                buttonId: `${usedPrefix}verdadoreto respuesta no`, // Botón No
+                buttonText: { displayText: "❌ No" },
                 type: 1
             }
         ];
 
-        // Enviar la verdad o el reto seleccionado con el prefijo y el botón de nueva ronda
         await conn.sendMessage(
             chat,
             {
                 text: responseText,
                 buttons: buttons,
-                viewOnce: true // O false
+                viewOnce: true
             },
             { quoted: m }
         );
+
+    } else if (args[0].toLowerCase() === 'respuesta' && args.length > 1) {
+         // --- Estado 3: Procesar la respuesta Sí/No y ofrecer Nueva Ronda ---
+        const userResponse = args[1].toLowerCase(); // 'sí' o 'no'
+        // No usamos userResponse aquí directamente, solo confirmamos que respondió
+
+        const buttons = [
+            {
+                buttonId: `${usedPrefix}verdadoreto`, // Este buttonId llama al estado 1
+                buttonText: { displayText: "🔄 Nueva Ronda" },
+                type: 1
+            }
+        ];
+
+        await conn.sendMessage(
+            chat,
+            {
+                text: "Ummm okay", // Mensaje solicitado
+                buttons: buttons,
+                viewOnce: true
+            },
+            { quoted: m }
+        );
+
+    } else {
+        // --- Estado de manejo de comandos inválidos ---
+        // Si el usuario escribe algo como "!verdadoreto hola", cae aquí
+         return conn.reply(chat, `❌ Uso incorrecto. Usa *${usedPrefix}verdadoreto* para empezar a jugar.`, m);
     }
 };
 
 // Configuración del handler
 verdadoretoHandler.help = ['verdadoreto'];
-verdadoretoHandler.tags = ['fun']; // Puedes cambiar la categoría si lo necesitas
-verdadoretoHandler.command = /^(verdadoreto|vyc|v o r)$/i; // Comandos para activarlo (verdadoreto, vyc, v o r)
+verdadoretoHandler.tags = ['fun'];
+verdadoretoHandler.command = /^(verdadoreto|vyc|v o r)$/i;
 
 export default verdadoretoHandler;
