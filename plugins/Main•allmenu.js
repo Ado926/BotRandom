@@ -112,7 +112,6 @@ let menu = `
 ┃ │ ⏳ Activo: ${uptime}
 ┃ │ 👥 Usuarios: ${totalreg}
 ┃ │ 🏆 Nivel: ${level} | 🌟 XP: ${exp}
-┃ │ 👑 Rango: ${role}
 ┃ ╰─────────────╯
 ┃
 ┃ 🐱 Creador: Wirk
