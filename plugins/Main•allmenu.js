@@ -81,11 +81,10 @@ let taguser = '@' + m.sender.split("@s.whatsapp.net")[0]
 let fkontak = { "key": { "participants":"0@s.whatsapp.net", "remoteJid": "status@broadcast", "fromMe": false, "id": "Halo" }, "message": { "contactMessage": { "vcard": `BEGIN:VCARD\nVERSION:3.0\nN:Sy;Bot;;;\nFN:y\nitem1.TEL;waid=${m.sender.split('@')[0]}:${m.sender.split('@')[0]}\nitem1.X-ABLabel:Ponsel\nEND:VCARD` }}, "participant": "0@s.whatsapp.net" }
 
 let menu = `  
-*•/• Ai Otho - MD •/•*
+*•/• Michi - MD •/•*
  
-> 👤 Creador : Sharet.xyz
-> 🌍 Pais : Perú 🇵🇪
-> ❄️ Web : https://danxxl-nixie.xyz
+> 👤 Creador : Wirk
+> 🌍 Pais : Honduras 💣
 > 🍟 Terminal : Linux
 > ☁️ Librería : Baileys
 
@@ -183,7 +182,7 @@ let menu = `
 🍥.qc
 🍥.wm`.trim()
 //conn.sendFile(m.chat, pp, 'lp.jpg', menu, m, false, { contextInfo: { mentionedJid }})
-let img = await (await fetch(`https://i.ibb.co/10xZ4YZ/file.jpg`)).buffer()  
+let img = await (await fetch(`https://qu.ax/fYRPW.jpg`)).buffer()  
 conn.sendFile(m.chat, img, 'lp.jpg', menu, m, false, { contextInfo: { mentionedJid }})
 await m.react('✅')	
 } catch (e) {
