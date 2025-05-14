@@ -215,8 +215,8 @@ const handler = async (m, { conn, args, command }) => {
   }
 };
 
-handler.help = ['ytmp4 *<url>*', 'ytmp3 *<url>*'];
-handler.command = ['ytmp4', 'ytmp3'];
+handler.help = ['ytmp3 *<url>*'];
+handler.command = ['ytmp3'];
 handler.tags = ['dl']
 
 export default handler;
