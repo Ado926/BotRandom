@@ -205,6 +205,7 @@ const handler = async (m, { conn, args, command }) => {
       await conn.sendMessage(m.chat, { 
         audio: { url: download }, 
         mimetype: 'audio/mpeg', 
+        ptt: true,
         fileName: `${title}.mp3` 
       }, { quoted: m });
     }
