@@ -16,13 +16,7 @@ let txt = `- *Video de :* _${json.author.name || "Desconocido"}_ ( @${json.autho
 - *Comentarios :* ${json.stats.commentCount || 0}
 - *Compartidos :* ${json.stats.shareCount || 0}
 - *Reproducciones*: ${json.stats.playCount || 0}
-- *Guardados*: ${json.stats.saveCount || 0}
-
-Responde con:
-
-- *1* (Calidad mediana)  
-- *2* (Calidad alta)  
-- *3* (audio)`
+- *Guardados*: ${json.stats.saveCount || 0}`
 
 let enviarvid = await conn.sendMessage(m.chat, { video: { url: json.video.noWatermark }, caption: txt }, { quoted: m })
 let msgID = enviarvid.key.id
@@ -51,6 +45,6 @@ await conn.sendMessage(chatId, "✿ Solo puedes responder con 1,2,3", m)
 console.error(error)
 }}
 
-handler.command = ['tiktok']
+handler.command = ['tiktok', 'tt']
 
 export default handler
