@@ -1,54 +1,59 @@
-const { useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, MessageRetryMap, makeCacheableSignalKeyStore, jidNormalizedUser } = await import('@whiskeysockets/baileys')
-import moment from 'moment-timezone'
-import NodeCache from 'node-cache'
+import fs from 'fs'
+import path from 'path'
 import readline from 'readline'
-import qrcode from "qrcode"
-import crypto from 'crypto'
-import fs from "fs"
 import pino from 'pino'
-import * as ws from 'ws'
-const { CONNECTING } = ws
+import NodeCache from 'node-cache'
 import { Boom } from '@hapi/boom'
+import ws from 'ws'
+const { CONNECTING } = ws
+import moment from 'moment-timezone'
+import qrcode from 'qrcode'
+import crypto from 'crypto'
+import { useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, MessageRetryMap, makeCacheableSignalKeyStore, jidNormalizedUser } from '@whiskeysockets/baileys'
 import { makeWASocket } from '../lib/simple.js'
 
 if (!(global.conns instanceof Array)) global.conns = []
 
 let handler = async (m, { conn: _conn, args, usedPrefix, command, isOwner }) => {
-  const bot = global.db.data.settings[_conn.user.jid] || {}
+  const bot = global.db.data?.settings?.[_conn.user.jid] || {}
 
   if (!bot.jadibotmd) return m.reply('💛 Este Comando Se Encuentra Desactivado Por Mi Creador')
 
-  let parent = args[0] && args[0] == 'plz' ? _conn : await global.conn
+  // Decide el "padre" del bot, si usas 'plz' conectas con el _conn actual, sino con global.conn
+  let parent = args[0] === 'plz' ? _conn : global.conn
 
   async function serbot() {
-    let authFolderB = m.sender.split('@')[0]
-    const userFolderPath = `./OthoJadiBot/${authFolderB}`
+    let userId = m.sender.split('@')[0]
+    const userFolderPath = `./OthoJadiBot/${userId}`
 
     if (!fs.existsSync(userFolderPath)) {
       fs.mkdirSync(userFolderPath, { recursive: true })
     }
 
-    if (args[0]) {
-      fs.writeFileSync(`${userFolderPath}/creds.json`, JSON.stringify(JSON.parse(Buffer.from(args[0], "base64").toString("utf-8")), null, '\t'))
+    // Si envían base64 en args[0], guarda el creds.json decodificado
+    if (args[0] && args[0] !== 'plz') {
+      try {
+        const decoded = Buffer.from(args[0], "base64").toString("utf-8")
+        const jsonCreds = JSON.parse(decoded)
+        fs.writeFileSync(`${userFolderPath}/creds.json`, JSON.stringify(jsonCreds, null, 2))
+      } catch {
+        return m.reply('❌ El código base64 enviado es inválido o está mal formateado.')
+      }
     }
 
+    // Carga estado de autenticación
     const { state, saveCreds } = await useMultiFileAuthState(userFolderPath)
-    const msgRetryCounterMap = (MessageRetryMap) => { }
     const msgRetryCounterCache = new NodeCache()
     const { version } = await fetchLatestBaileysVersion()
-    let phoneNumber = m.sender.split('@')[0]
 
-    const methodCodeQR = process.argv.includes("qr")
+    const phoneNumber = m.sender.split('@')[0]
     const methodCode = !!phoneNumber || process.argv.includes("code")
-    const MethodMobile = process.argv.includes("mobile")
-
-    const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
-    const question = (texto) => new Promise((resolver) => rl.question(texto, resolver))
+    const methodMobile = process.argv.includes("mobile")
 
     const connectionOptions = {
       logger: pino({ level: 'silent' }),
       printQRInTerminal: false,
-      mobile: MethodMobile,
+      mobile: methodMobile,
       browser: ["Ubuntu", "Chrome", "20.0.04"],
       auth: {
         creds: state.creds,
@@ -56,35 +61,38 @@ let handler = async (m, { conn: _conn, args, usedPrefix, command, isOwner }) => 
       },
       markOnlineOnConnect: true,
       generateHighQualityLinkPreview: true,
-      getMessage: async (clave) => {
-        let jid = jidNormalizedUser(clave.remoteJid)
-        let msg = await store.loadMessage(jid, clave.id)
+      getMessage: async (key) => {
+        let jid = jidNormalizedUser(key.remoteJid)
+        let msg = await store.loadMessage(jid, key.id)
         return msg?.message || ""
       },
       msgRetryCounterCache,
-      msgRetryCounterMap,
+      msgRetryCounterMap: MessageRetryMap,
       defaultQueryTimeoutMs: undefined,
       version
     }
 
     let conn = makeWASocket(connectionOptions)
 
+    // Si el bot no está registrado, muestra código QR o código de vinculación
     if (methodCode && !conn.authState.creds.registered) {
-      if (!phoneNumber) process.exit(0)
       let cleanedNumber = phoneNumber.replace(/[^0-9]/g, '')
       setTimeout(async () => {
-        let codeBot = await conn.requestPairingCode(cleanedNumber)
-        codeBot = codeBot?.match(/.{1,4}/g)?.join("-") || codeBot
-        let txt = `┌  🜲  *Usa este Código para convertirte en un Sub Bot*\n`
-        txt += `│  ❀  Pasos\n`
-        txt += `│  ❀  *1* : Haga click en los 3 puntos\n`
-        txt += `│  ❀  *2* : Toque dispositivos vinculados\n`
-        txt += `│  ❀  *3* : Selecciona *Vincular con el número de teléfono*\n`
-        txt += `└  ❀  *4* : Escriba el Codigo\n\n`
-        txt += `*❖ Nota:* Este Código solo funciona en el número en el que se solicitó.`
-        await parent.reply(m.chat, txt, m)
-        await parent.reply(m.chat, codeBot, m)
-        rl.close()
+        try {
+          let codeBot = await conn.requestPairingCode(cleanedNumber)
+          codeBot = codeBot?.match(/.{1,4}/g)?.join("-") || codeBot
+          let txt = `┌  🜲  *Usa este Código para convertirte en un Sub Bot*\n`
+          txt += `│  ❀  Pasos:\n`
+          txt += `│  ❀  1: Haga click en los 3 puntos\n`
+          txt += `│  ❀  2: Toque dispositivos vinculados\n`
+          txt += `│  ❀  3: Selecciona *Vincular con el número de teléfono*\n`
+          txt += `└  ❀  4: Escriba el Código\n\n`
+          txt += `*❖ Nota:* Este Código solo funciona en el número que lo solicitó.`
+          await parent.reply(m.chat, txt, m)
+          await parent.reply(m.chat, codeBot, m)
+        } catch (e) {
+          await parent.reply(m.chat, '❌ Error al solicitar el código de vinculación.', m)
+        }
       }, 3000)
     }
 
@@ -92,55 +100,61 @@ let handler = async (m, { conn: _conn, args, usedPrefix, command, isOwner }) => 
     let isInit = true
 
     async function connectionUpdate(update) {
-      const { connection, lastDisconnect, isNewLogin, qr } = update
+      const { connection, lastDisconnect, isNewLogin } = update
       if (isNewLogin) conn.isInit = true
+
       const code = lastDisconnect?.error?.output?.statusCode || lastDisconnect?.error?.output?.payload?.statusCode
 
-      if (code && code !== DisconnectReason.loggedOut && conn?.ws.socket == null) {
+      if (code && code !== DisconnectReason.loggedOut && conn?.ws?.socket == null) {
         let i = global.conns.indexOf(conn)
-        if (i < 0) return console.log(await creloadHandler(true).catch(console.error))
-        delete global.conns[i]
+        if (i < 0) return
         global.conns.splice(i, 1)
-        fs.rmdirSync(userFolderPath, { recursive: true })
+        try {
+          fs.rmSync(userFolderPath, { recursive: true, force: true })
+        } catch {}
         if (code !== DisconnectReason.connectionClosed) {
           parent.sendMessage(m.chat, { text: "Conexión perdida.." }, { quoted: m })
         }
       }
 
-      if (global.db.data == null) loadDatabase()
+      if (global.db.data == null) {
+        await loadDatabase()
+      }
 
-      if (connection == 'open') {
+      if (connection === 'open') {
         conn.isInit = true
         global.conns.push(conn)
         await parent.reply(m.chat, args[0] ? 'Conectado con éxito' : `❀ ᥴ᥆ᥒᥱᥴ𝗍ᥲძ᥆ ᥱ᥊і𝗍᥆sᥲmᥱᥒ𝗍ᥱ ᥲ ᥕһᥲ𝗍sᥲ⍴⍴\n\n> ${dev}`, m)
         await sleep(5000)
         if (args[0]) return
         await parent.reply(conn.user.jid, `La siguiente vez que se conecte envía el siguiente mensaje para iniciar sesión sin utilizar otro código`, m)
-        await parent.sendMessage(conn.user.jid, { text: usedPrefix + command + " " + Buffer.from(fs.readFileSync(`${userFolderPath}/creds.json`), "utf-8").toString("base64") }, { quoted: m })
+
+        // Envía el base64 para reconectar fácilmente
+        const base64creds = Buffer.from(fs.readFileSync(`${userFolderPath}/creds.json`), "utf-8").toString("base64")
+        await parent.sendMessage(conn.user.jid, { text: `${usedPrefix}${command} ${base64creds}` }, { quoted: m })
       }
     }
 
-    setInterval(async () => {
+    setInterval(() => {
       if (!conn.user) {
-        try { conn.ws.close() } catch { }
+        try { conn.ws.close() } catch {}
         conn.ev.removeAllListeners()
         let i = global.conns.indexOf(conn)
         if (i < 0) return
-        delete global.conns[i]
         global.conns.splice(i, 1)
       }
     }, 60000)
 
     let handlerModule = await import('../handler.js')
-    let creloadHandler = async function (restatConn) {
+    let creloadHandler = async function (restartConn) {
       try {
         const Handler = await import(`../handler.js?update=${Date.now()}`).catch(console.error)
         if (Object.keys(Handler || {}).length) handlerModule = Handler
       } catch (e) {
         console.error(e)
       }
-      if (restatConn) {
-        try { conn.ws.close() } catch { }
+      if (restartConn) {
+        try { conn.ws.close() } catch {}
         conn.ev.removeAllListeners()
         conn = makeWASocket(connectionOptions)
         isInit = true
