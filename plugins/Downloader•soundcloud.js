@@ -21,7 +21,7 @@ let txt = `ゲ◜៹ Soundcloud Search & Downloader ៹◞ゲ\n\n`;
     txt += `Título : ${json[0].title}\n`;
     txt += `Calidad : ${quality}\n`;
     txt += `Url : ${url}\n\n`;
-    txt += `🍭 Powered By Daniel (神志不清)`
+    txt += `🪴 Powered By Wirk`
 
 await conn.sendFile(m.chat, image, 'thumbnail.jpg', txt, m);
 await conn.sendMessage(m.chat, { audio: audio, fileName: `${json[0].title}.mp3`, mimetype: 'audio/mpeg' }, { quoted: m })
