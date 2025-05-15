@@ -246,7 +246,8 @@ let menu = `
 🏝️ .ship
 🏝️ .top
 🏝️ .zodiac
-══════════════
+
+> © Powered By Wirk 🪴
 `.trim();
 // ---- FIN DEL MENÚ REDISEÑADO ----
 
