@@ -3,11 +3,7 @@ import axios from 'axios';
 const handler = async (m, { conn, text, usedPrefix, command }) => {
   try {
     if (!text) {
-      await conn.sendMessage(
-        m.chat,
-        { text: `✎ Por favor proporciona un término de búsqueda.\n\nEjemplo:\n${usedPrefix}${command} akame` },
-        { quoted: m }
-      );
+      await conn.sendMessage(m.chat, { text: `✎ Por favor escribe qué quieres buscar.\nEjemplo:\n${usedPrefix + command} gato` }, { quoted: m });
       return;
     }
 
@@ -15,28 +11,25 @@ const handler = async (m, { conn, text, usedPrefix, command }) => {
     const data = response.data.data;
 
     if (!data || data.length === 0) {
-      await conn.sendMessage(
-        m.chat,
-        { text: `❌ No se encontraron imágenes para "${text}".` },
-        { quoted: m }
-      );
+      await conn.sendMessage(m.chat, { text: `❌ No se encontraron imágenes para "${text}".` }, { quoted: m });
       return;
     }
 
+    // Elegir imagen aleatoria
     const randomImage = data[Math.floor(Math.random() * data.length)];
     const imageUrl = randomImage.images_url;
-    const title = randomImage.grid_title || `Imagen relacionada a "${text}"`;
+    const caption = `✨ Resultado para *${text}*`;
 
-    const caption = `✨ *${title}*`;
-
+    // Botón para siguiente imagen
     const buttons = [
       {
-        buttonId: `${usedPrefix}${command} ${text}`,
+        buttonId: `${usedPrefix}${command} ${text}`, // al pulsar vuelve a llamar el comando con el mismo texto
         buttonText: { displayText: '🔄 Siguiente' },
         type: 1
       }
     ];
 
+    // Enviar imagen con botón
     await conn.sendMessage(
       m.chat,
       {
@@ -49,20 +42,18 @@ const handler = async (m, { conn, text, usedPrefix, command }) => {
       { quoted: m }
     );
 
+    // Reaccionar con check para confirmar
     await m.react('✅');
+
   } catch (error) {
-    console.error('Error al obtener la imagen:', error);
+    console.error(error);
     await m.react('❌');
-    await conn.sendMessage(
-      m.chat,
-      { text: '❌ Ocurrió un error al intentar obtener la imagen. Intenta nuevamente.' },
-      { quoted: m }
-    );
+    await conn.sendMessage(m.chat, { text: '❌ Ocurrió un error. Intenta otra vez.' }, { quoted: m });
   }
 };
 
-handler.help = ['pinterest <término>'];
+handler.help = ['pinterest <texto>'];
 handler.tags = ['buscador'];
-handler.command = ['pinterest'];
+handler.command = /^pinterest$/i;
 
 export default handler;
