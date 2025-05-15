@@ -34,11 +34,11 @@ export async function before(m, { conn, participants, groupMetadata }) {
           body: `¡Nos alegra tenerte aquí en *${groupMetadata.subject}*!`,
           previewType: "PHOTO",
           thumbnail,
-          sourceUrl: redes,
+          mediaUrl: redes,
           showAdAttribution: true
         }
       },
-      seconds: '572',
+      seconds: '100',
       ptt: true,
       mimetype: 'audio/mpeg',
       fileName: `bienvenida.mp3`
@@ -62,11 +62,11 @@ export async function before(m, { conn, participants, groupMetadata }) {
           body: `Esperamos verte de nuevo por *${groupMetadata.subject}*`,
           previewType: "PHOTO",
           thumbnail,
-          sourceUrl: redes,
+          mediaUrl: redes,
           showAdAttribution: true
         }
       },
-      seconds: '572',
+      seconds: '100',
       ptt: true,
       mimetype: 'audio/mpeg',
       fileName: `despedida.mp3`
