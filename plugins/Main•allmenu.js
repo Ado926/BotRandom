@@ -1,7 +1,7 @@
 import fs from 'fs'
 import fetch from 'node-fetch'
 import { xpRange } from '../lib/levelling.js'
-// const { levelling } from '../lib/levelling.js' // Esta línea parece duplicada o incorrecta, la comento.
+// const { levelling } = '../lib/levelling.js' // Esta línea parece duplicada o incorrecta, la comento.
 import PhoneNumber from 'awesome-phonenumber'
 import { promises } from 'fs'
 import { join } from 'path'
@@ -9,7 +9,8 @@ import { join } from 'path'
 let handler = async (m, { conn, usedPrefix, usedPrefix: _p, __dirname, text, command }) => {
 try {
 let vn = './media/menu.mp3' // Asegúrate de tener este archivo si lo usas.
-let _package = JSON.parse(await promises.readFile(join(__dirname, './package.json')).catch( => ({}))) || {}
+// CORRECTED LINE BELOW: Added 'e' parameter to the catch block
+let _package = JSON.parse(await promises.readFile(join(__dirname, '../package.json')).catch(e => ({}))) || {}
 let { exp, limit, level, role } = global.db.data.users[m.sender]
 let { min, xp, max } = xpRange(level, global.multiplier)
 let name = await conn.getName(m.sender)
@@ -99,23 +100,23 @@ let fkontak = { "key": { "participants":"0@s.whatsapp.net", "remoteJid": "status
 // ---- INICIO DEL MENÚ REDISEÑADO ----
 let menu = `
 ┏━═━═━═━═━═━═━═━═━═┓
-┃  *🪴 The Michi - MD ☕*
+┃  🪴 The Michi - MD ☕
 ┣━═━═━═━═━═━═━═━═━═┛
 ┃
 ┃ 🐾 ¡Hola, ${name}!
 ┃
 ┃ ╭─────────────╮
-┃ │ 🗓️ \`Fecha:\` ${date}
-┃ │ ⏰ \`Hora:\` ${time}
-┃ │ ⏳ \`Activo Desde:\` ${uptime}
-┃ │ 👥 \`Usuarios:\` ${totalreg}
-┃ │ 🏆 \`Nivel:\` ${level} | 🌟 XP: ${exp}
+┃ │ 🗓️ Fecha: ${date}
+┃ │ ⏰ Hora: ${time}
+┃ │ ⏳ Activo: ${uptime}
+┃ │ 👥 Usuarios: ${totalreg}
+┃ │ 🏆 Nivel: ${level} | 🌟 XP: ${exp}
 ┃ ╰─────────────╯
 ┃
-┃ 🐱 *Creador:* Wirk
-┃ 🌎 *País:* Honduras 💣
-┃ 🖥️ *Terminal:* Linux
-┃ 📚 *Librería:* Baileys
+┃ 🐱 *Creador*: \`Wirk\`
+┃ 🌎 *País*: \`Honduras 💣\`
+┃ 🖥️ *Terminal*: \`Linux\`
+┃ 📚 *Librería*: \`Baileys\`
 ┣━═━═━═━═━═━═━═━═━═┓
 ┃   📚 Menu de Comandos
 ┗━═━═━═━═━═━═━═━═━═━┛
