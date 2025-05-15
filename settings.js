@@ -34,7 +34,7 @@ global.baileys = 'V 6.7.8'
 global.vs = '2.0.7'
 global.languaje = 'Español'
 global.nameqr = 'Ai Otho'
-global.namebot = 'Ai Otho - MD'
+global.namebot = '✿ MichiBot Oficial ✿'
 global.sessions = 'OthoSession'
 global.jadi = 'OthoJadiBot'
 
@@ -73,7 +73,7 @@ global.estilo = { key: {  fromMe: false, participant: `0@s.whatsapp.net`, ...(fa
 
 //*─ׄ─ׅ─ׄ─⭒─ׄ─ׅ─ׄ─⭒─ׄ─ׅ─ׄ─⭒─ׄ─ׅ─ׄ─⭒─ׄ─ׅ─ׄ─⭒─ׄ─ׅ─ׄ─*
 
-global.esti = { key: {participant: `0@s.whatsapp.net`, ...(false ? { remoteJid: "6289643739077-1613049930@g.us" } : {})},message: {"videoMessage": { "title": dev, "h": `Hmm`,'seconds': '99999', 'gifPlayback': 'true', 'caption': `Ai Otho - MD`, 'jpegThumbnail': catalogo }}}
+global.esti = { key: {participant: `0@s.whatsapp.net`, ...(false ? { remoteJid: "6289643739077-1613049930@g.us" } : {})},message: {"videoMessage": { "title": dev, "h": `Hmm`,'seconds': '99999', 'gifPlayback': 'true', 'caption': `✿ MichiBot Oficial ✿`, 'jpegThumbnail': catalogo }}}
 
 //*─ׄ─ׅ─ׄ─⭒─ׄ─ׅ─ׄ─⭒─ׄ─ׅ─ׄ─⭒─ׄ─ׅ─ׄ─⭒─ׄ─ׅ─ׄ─⭒─ׄ─ׅ─ׄ─*
 
