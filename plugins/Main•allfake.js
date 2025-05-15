@@ -47,8 +47,8 @@ global.error = '✖️'
 // Emojis de Michi Ai
 global.emoji = '🌸'
 global.emoji2 = '🍬'
-global.emoji3 = '✨️'
-global.emoji4 = '🍭'
+global.emoji3 = '🍟'
+global.emoji4 = '☁️'
 global.emojis = [emoji, emoji2, emoji3, emoji4].getRandom()
 
 // Mensaje en espera
@@ -58,8 +58,8 @@ global.waittt = '🚀 Cargando...'
 global.waitttt = '🚀 Cargando...'
 
 // Enlaces
-var git = 'https://github.com/DanielDiod'  
-var github = 'https://github.com/DanielDiod/Ai-Otho'  
+var git = 'https://github.com/Ado926'  
+var github = 'https://github.com/Ado926/MaiBot'  
 var panel = 'https://panel.skyultraplus.com'
 var dash = 'https://dash.skyultraplus.com'
 var tienda = 'https://dash.skyultraplus.com/store'
@@ -134,7 +134,7 @@ global.rcanal = {
     externalAdReply: {
       showAdAttribution: true,
       title: global.namechannel,
-      body: 'Canal oficial de WhatsApp',
+      body: '☁️ Sigue Nuestro Canal 👻',
       mediaUrl: null,
       description: null,
       previewType: "PHOTO",
