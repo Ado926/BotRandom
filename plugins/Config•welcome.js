@@ -31,7 +31,7 @@ export async function before(m, { conn, participants, groupMetadata }) {
         mentionedJid: getMentionedJid(),
         externalAdReply: {
           title: `Bienvenid@ ${userName} :D`,
-          body: `¡Nos alegra tenerte aquí en *${groupMetadata.subject}*!`,
+          body: `Estas en *${groupMetadata.subject}*`,
           previewType: "PHOTO",
           thumbnail,
           mediaUrl: redes,
@@ -59,7 +59,7 @@ export async function before(m, { conn, participants, groupMetadata }) {
         mentionedJid: getMentionedJid(),
         externalAdReply: {
           title: `👁️ Adiós ${userName}  :(`,
-          body: `Esperamos verte de nuevo por *${groupMetadata.subject}*`,
+          body: `*${groupMetadata.subject} Siempre te recordará..`,
           previewType: "PHOTO",
           thumbnail,
           mediaUrl: redes,
