@@ -28,8 +28,8 @@ global.getBuffer = async function getBuffer(url, options) {
   }
 }
 
-let who = m.messageStubParameters[0] + '@s.whatsapp.net'
-let user = global.db.data.users[who]
+let who = m.messageStubParameters?.[0] + '@s.whatsapp.net'
+let user = global.db.data.users?.[who]
 let pushname = m.pushName || 'Sin nombre'
 
 // Creador y otros
@@ -37,6 +37,7 @@ global.creador = 'Wa.me/50493732693'
 global.ofcbot = `${conn.user.jid.split('@')[0]}`
 global.asistencia = 'https://wa.me/message/BTJGZ2PHZGQZO1'
 global.namechannel = '☁️ Michi Ai 🪴'
+global.canal = 'https://whatsapp.com/channel/0029Vb5UfTC4CrfeKSamhp1f'
 
 // Reacciones
 global.rwait = '🕒'
@@ -57,7 +58,6 @@ global.waittt = '🚀 Cargando...'
 global.waitttt = '🚀 Cargando...'
 
 // Enlaces
-var canal = 'https://whatsapp.com/channel/0029VaBpO8M3rZZdwkGFIP33'  
 var git = 'https://github.com/DanielDiod'  
 var github = 'https://github.com/DanielDiod/Ai-Otho'  
 var panel = 'https://panel.skyultraplus.com'
@@ -122,28 +122,30 @@ global.icono = [
   'https://qu.ax/njcmN.jpg'
 ].getRandom()
 
-// Canal con nuevo newsletterJid
+// Canal oficial Michi Ai (mensaje al tocar)
 global.rcanal = {
   contextInfo: {
     isForwarded: true,
     forwardedNewsletterMessageInfo: {
       newsletterJid: "120363402846939411@newsletter",
       serverMessageId: 100,
-      newsletterName: namechannel,
+      newsletterName: global.namechannel,
     },
     externalAdReply: {
       showAdAttribution: true,
-      title: namebot,
-      body: dev,
+      title: global.namechannel,
+      body: 'Canal oficial de WhatsApp',
       mediaUrl: null,
       description: null,
       previewType: "PHOTO",
-      thumbnailUrl: icono,
-      sourceUrl: redes,
+      thumbnailUrl: global.icono,
+      sourceUrl: global.canal,
       mediaType: 1,
       renderLargerThumbnail: false
     }
   }
+}
+
 }
 
 export default handler
