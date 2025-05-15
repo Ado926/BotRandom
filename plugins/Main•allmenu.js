@@ -122,6 +122,8 @@ let menu = `
 ┃   📚 Menu de Comandos
 ┗━═━═━═━═━═━═━═━═━═━┛
 
+🍄 \`URL:\` https://play-youtubedescargas.vercel.app/
+
 📜 *Información Bot*
 ☁️ .owner
 ☁️ .totalfunciones
