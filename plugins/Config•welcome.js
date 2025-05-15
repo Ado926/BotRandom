@@ -3,8 +3,8 @@ import fetch from 'node-fetch';
 export async function before(m, { conn, participants, groupMetadata }) {
   if (!m.messageStubType || !m.isGroup) return true;
 
-  let vn = 'https://qu.ax/bNwFE.mp4';
-  let vn2 = 'https://files.catbox.moe/64008h.mp4';
+  let vn = 'https://qu.ax/LqgQV.mp4';
+  let vn2 = 'https://qu.ax/qqHsA.mp4';
   let chat = global.db.data.chats[m.chat];
   const getMentionedJid = () => {
     return m.messageStubParameters.map(param => `${param}@s.whatsapp.net`);
