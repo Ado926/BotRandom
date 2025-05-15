@@ -21,19 +21,21 @@ const handler = async (m, { conn, text, usedPrefix, command }) => {
 
         const buttons = [
             {
-                buttonId: `${usedPrefix}${command} ${text}`,  // Aquí sin espacio extra ni puntos
+                buttonId: `${usedPrefix}${command} ${text}`,  // botón repite comando + texto
                 buttonText: { displayText: '🔄 Siguiente' },
                 type: 1
             }
         ];
 
-        await conn.sendMessage(m.chat, {
+        const buttonMessage = {
             image: { url: imageUrl },
             caption: `✨ *${title}*`,
             footer: '🔘 Pinterest',
-            templateButtons: buttons,
-        }, { quoted: m });
+            buttons: buttons,
+            headerType: 4
+        };
 
+        await conn.sendMessage(m.chat, buttonMessage, { quoted: m });
         await m.react('✅');
     } catch (error) {
         console.error('Error al obtener la imagen:', error);
