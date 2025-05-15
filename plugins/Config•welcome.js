@@ -14,8 +14,8 @@ export async function before(m, { conn, participants, groupMetadata }) {
   let user = global.db.data.users[who];
   let userName = user ? user.name : await conn.getName(who);
 
-  const thumbnail = await (await fetch('https://files.catbox.moe/uak1qu.jpg')).buffer();
-  const redes = 'https://chat.whatsapp.com/tu-grupo'; // Ajustá si querés un link real
+  const thumbnail = await (await fetch('https://qu.ax/JinSo.jpg')).buffer();
+  const redes = 'https://chat.whatsapp.com/FIIv5NysEqeCnAcbggeL4W'; // Ajustá si querés un link real
 
   if (chat.welcome && m.messageStubType === 27) {
     this.sendMessage(m.chat, {
