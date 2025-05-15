@@ -165,7 +165,6 @@ let menu = `
 🍘 .ia
 🍘 .gemini
 🍘 .bing
-🍘 @ai
 
 🔧 *Herramientas*
 🍧 .ssweb
