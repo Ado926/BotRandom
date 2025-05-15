@@ -9,7 +9,7 @@ import { join } from 'path'
 let handler = async (m, { conn, usedPrefix, usedPrefix: _p, __dirname, text, command }) => {
 try {
 let vn = './media/menu.mp3' // Asegúrate de tener este archivo si lo usas.
-let _package = JSON.parse(await promises.readFile(join(__dirname, '../package.json')).catch( => ({}))) || {}
+let _package = JSON.parse(await promises.readFile(join(__dirname, './package.json')).catch( => ({}))) || {}
 let { exp, limit, level, role } = global.db.data.users[m.sender]
 let { min, xp, max } = xpRange(level, global.multiplier)
 let name = await conn.getName(m.sender)
