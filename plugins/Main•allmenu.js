@@ -164,7 +164,6 @@ let menu = `
 💡 *Inteligencia Artificial*
 🍘 .ia
 🍘 .gemini
-🍘 .bing
 
 🔧 *Herramientas*
 🍧 .ssweb
