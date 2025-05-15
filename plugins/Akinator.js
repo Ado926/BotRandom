@@ -1,34 +1,49 @@
-import fetch from 'node-fetch'
+import axios from 'axios';
 
-let handler = async (m, { conn, text, command }) => {
-  if (!text) throw '✳️ Ingresa lo que deseas buscar en Pinterest'
+const handler = async (m, { conn, text, usedPrefix, command }) => {
+    try {
+        if (!text) {
+            await conn.sendMessage(m.chat, { text: `✎ Por favor proporciona un término de búsqueda.\n\nEjemplo:\n${usedPrefix}${command} akame` }, { quoted: m });
+            return;
+        }
 
-  const res = await fetch(`https://pinterest-api.vercel.app/?q=${encodeURIComponent(text)}`)
-  const json = await res.json()
+        const response = await axios.get(`https://api.siputzx.my.id/api/s/pinterest?query=${encodeURIComponent(text)}`);
+        const data = response.data.data;
 
-  if (!json || !json.length) throw '❌ No se encontraron imágenes'
+        if (!data || data.length === 0) {
+            await conn.sendMessage(m.chat, { text: `❌ No se encontraron imágenes para "${text}".` }, { quoted: m });
+            return;
+        }
 
-  let img = json[Math.floor(Math.random() * json.length)]
+        const randomImage = data[Math.floor(Math.random() * data.length)];
+        const imageUrl = randomImage.images_url;
+        const title = randomImage.grid_title || `Imagen relacionada a "${text}"`;
 
-  let buttonMessage = {
-    image: { url: img },
-    caption: `🔎 Resultado para *${text}*`,
-    footer: 'Michi Ai - Pinterest Bot',
-    buttons: [
-      {
-        buttonId: `.pinterest ${text}`,
-        buttonText: { displayText: '📸 Siguiente' },
-        type: 1
-      }
-    ],
-    headerType: 4
-  }
+        const buttons = [
+            {
+                buttonId: `${usedPrefix}${command} ${text}`,  // Aquí sin espacio extra ni puntos
+                buttonText: { displayText: '🔄 Siguiente' },
+                type: 1
+            }
+        ];
 
-  conn.sendMessage(m.chat, buttonMessage, { quoted: m })
-}
+        await conn.sendMessage(m.chat, {
+            image: { url: imageUrl },
+            caption: `✨ *${title}*`,
+            footer: '🔘 Pinterest',
+            templateButtons: buttons,
+        }, { quoted: m });
 
-handler.help = ['pinterest <búsqueda>']
-handler.tags = ['descargas', 'buscador']
-handler.command = /^pinterest$/i
+        await m.react('✅');
+    } catch (error) {
+        console.error('Error al obtener la imagen:', error);
+        await m.react('❌');
+        await conn.sendMessage(m.chat, { text: '❌ Ocurrió un error al intentar obtener la imagen. Intenta nuevamente.' }, { quoted: m });
+    }
+};
 
-export default handler
+handler.help = ['pinterest <término>'];
+handler.tags = ['buscador'];
+handler.command = ['pinterest'];
+
+export default handler;
