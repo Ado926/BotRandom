@@ -125,7 +125,7 @@ let handler = async (m, { conn, text }) => {
     const results = await pins(text);
     if (!results || results.length === 0) return conn.reply(m.chat, `No se encontraron resultados para "${text}".`, m);
 
-    const maxImages = Math.min(results.length, 10);
+    const maxImages = Math.min(results.length, 12);
     const medias = [];
 
     for (let i = 0; i < maxImages; i++) {
@@ -136,7 +136,7 @@ let handler = async (m, { conn, text }) => {
     }
 
     await sendAlbumMessage(m.chat, medias, {
-      caption: `◜ Pinterest Search ◞\n\n≡ 🔎 \`Búsqueda :\` "${text}"\n≡ 📄 \`Resultados :\` ${maxImages}`,
+      caption: `☕ Pinterest Search ◞\n\n≡ 🪴 Búsqueda : "${text}"\n≡ 🌻 Resultados : ${maxImages}`,
       quoted: m
     });
 
