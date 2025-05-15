@@ -11,7 +11,7 @@ await m.reply(res.result)
 await m.react(error)
 await conn.reply(m.chat, `Error.`, m)
 }}
-handler.command = ['gemini']
+handler.command = ['gemini', 'ia']
 handler.help = ['gemini']
 handler.tags = ['ai']
 
