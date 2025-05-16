@@ -33,9 +33,9 @@ let handler = async (m, { conn, command, text, usedPrefix }) => {
       contextInfo: {
         externalAdReply: {
           title: title,
-          body: 'Audio Descargado de Genesis-Ai',
+          body: 'Audio Descargado Por Michi 👻',
           mediaType: 1,
-          mediaUrl: null,
+          mediaUrl: "https://chat.whatsapp.com/LVswMhDLIzbAf4WliK6nau",
           thumbnailUrl: thumbnail,
           sourceUrl: null,
           containsAutoReply: true,
