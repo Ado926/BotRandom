@@ -8,7 +8,7 @@ import cfonts from 'cfonts'
 import { createInterface } from 'readline'
 import yargs from 'yargs'
 import chalk from 'chalk'
-console.log('\n✰ Iniciando Otho ✰')
+console.log('\n✰ Iniciando Michi ✰')
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const require = createRequire(__dirname)
 const { name, description, collaborators, author, version } = require(join(__dirname, './package.json'))
@@ -23,7 +23,7 @@ if (collaborators.hasOwnProperty(key)) {
 activeCollaborators += collaborators[key] + ', '
 }}
 activeCollaborators = activeCollaborators.slice(0, -2);
-cfonts.say('ai\notho md', {
+cfonts.say('Michi\nAi', {
 align: 'center',           
 gradient: ['red', 'blue'] 
 })
@@ -32,7 +32,7 @@ font: 'console',
 align: 'center',
 gradient: ['blue', 'magenta']
 })
-const message = `${subtitleStyle('Desarrollado por »')} ${responseStyle(author.name)}
+const message = `${subtitleStyle('Desarrollado por » Wirk '
 ${subtitleStyle('Código basado por »')} ${responseStyle('BrunoSobrino')}
 ${subtitleStyle('Colaboradores activos »')} ${responseStyle(activeCollaborators)}
 ${subtitleStyle('Versión »')} ${responseStyle(version)}`
