@@ -34,7 +34,7 @@ let handler = async (m, { conn, command, text, usedPrefix }) => {
         externalAdReply: {
           title: title,
           body: 'Audio Descargado Por Michi 👻',
-          mediaType: 1,
+          mediaType: 2,
           mediaUrl: "https://chat.whatsapp.com/LVswMhDLIzbAf4WliK6nau",
           thumbnailUrl: thumbnail,
           sourceUrl: null,
