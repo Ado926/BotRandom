@@ -30,7 +30,7 @@ let crm3 = "BpbmZvLWRvbmFyLmpz" // info-donar.js
 let crm4 = "IF9hdXRvcmVzcG9uZGVyLmpzIGluZm8tYm90Lmpz" // _autoresponder.js info-bot.js
 let drm1 = ""
 let drm2 = ""
-let rtx = "⪛✰ ↫Michi ↬ ✰⪜\n\n✐ 𝖢𝗈𝗇𝖾𝗑𝗂𝗈́𝗇 𝖵𝗂́𝖺 𝖰𝖱\n\n✰ Con otro celular o en la PC escanea este QR para convertirte en un Sub-Bot Temporal.\n\n`1` » Haga clic en los tres puntos en la esquina superior derecha\n\n`2` » Toque dispositivos vinculados\n\n`3` » Escanee este codigo QR para iniciar sesion con el bot\n\n✧ ¡Este código QR expira en 45 segundos!." 
+let rtx = "⪛✰ ↫Michi ↬ ✰⪜\n\n✐ 𝖢𝗈𝗇𝖾𝗑𝗂𝗈́𝗇 𝖵𝗂́𝖺 𝖰𝖱\n\n✰ Con otro celular o en la PC escanea este QR para convertirte en un Sub-Bot Temporal.\n\n`1` » Haga clic en los tres puntos en la esquina superior derecha\n\n`2` » Toque dispositivos vinculados\n\n`3` » Escanee este codigo QR para iniciar sesion con el bot\n\n✧ ¡Este código QR expira en 45 segundos!."
 let rtx2 = "⪛✰ ↫𝗠𝗮𝗶 ↬ ✰⪜\n\n✐ 𝘾𝙤𝙣𝙚𝙭𝙞𝙤 𝙑𝙞́𝙖 𝘾𝙤́𝙙𝙞𝙜𝙤 [ᴘᴏᴘᴜʟᴀʀ]\n\n✰ Usa este Código para convertirte en un Sub-Bot Temporal.\n\n`1` » Haga clic en los tres puntos en la esquina superior derecha\n\n`2` » Toque dispositivos vinculados\n\n`3` » Selecciona Vincular con el número de teléfono\n\n`4` » Escriba el Código para iniciar sesion con el bot\n\n✧ No es recomendable usar tu cuenta principal."
 
 const __filename = fileURLToPath(import.meta.url)
@@ -53,7 +53,7 @@ return m.reply(`${emoji2} No se han encontrado espacios para *Sub-Bots* disponib
 }*/
 let who = m.mentionedJid && m.mentionedJid[0] ? m.mentionedJid[0] : m.fromMe ? conn.user.jid : m.sender
 let id = `${who.split`@`[0]}`  //conn.getName(who)
-let pathYukiJadiBot = path.join(`./${jadi}/`, id)
+let pathYukiJadiBot = path.join(`./${jadi}/`, id) // Asegúrate de que 'jadi' esté definido en alguna parte de tu bot (ej: global.jadi = 'OthoJadiBot')
 if (!fs.existsSync(pathYukiJadiBot)){
 fs.mkdirSync(pathYukiJadiBot, { recursive: true })
 }
@@ -69,29 +69,46 @@ global.db.data.users[m.sender].Subs = new Date * 1
 }
 handler.help = ['qr', 'code']
 handler.tags = ['serbot']
-handler.command = ['qr']
+handler.command = ['qr'] // Añadimos 'code' aquí también para que funcione con usedPrefix
 export default handler
 
 export async function yukiJadiBot(options) {
 let { pathYukiJadiBot, m, conn, args, usedPrefix, command } = options
+// Si el comando es 'code', ajustamos args y command para el manejo interno
 if (command === 'code') {
-command = 'qr';
-args.unshift('code')}
-const mcode = args[0] && /(--code|code)/.test(args[0].trim()) ? true : args[1] && /(--code|code)/.test(args[1].trim()) ? true : false
+  // No es necesario modificar 'command', solo verificar 'mcode' más adelante
+  // args ya debería contener el código base64 o estar vacío
+}
+const mcode = args[0] && /(--code|code)/.test(args[0].trim()) ? true : args[1] && /(--code|code)/.test(args[1].trim()) ? true : command === 'code' // Verificamos si se usó '--code', 'code' o si el comando original fue 'code'
 let txtCode, codeBot, txtQR
 if (mcode) {
-args[0] = args[0].replace(/^--code$|^code$/, "").trim()
-if (args[1]) args[1] = args[1].replace(/^--code$|^code$/, "").trim()
-if (args[0] == "") args[0] = undefined
+  // Limpiamos los argumentos si se usaron flags como '--code'
+  if (args[0]) args[0] = args[0].replace(/^--code$|^code$/, "").trim();
+  if (args[1]) args[1] = args[1].replace(/^--code$|^code$/, "").trim();
+  // Si args[0] quedó vacío después de limpiar, lo ponemos undefined
+  if (args[0] === "") args[0] = undefined;
+  // Si el comando original fue 'code', el código base64 debería ser args[0]
+  if (command === 'code' && args[0]) {
+      // args[0] ya es el código base64 si se usó '.code CODIGO'
+  } else if (mcode && args[1]) {
+       // Si se usó '.qr --code CODIGO' o '.qr code CODIGO', el código es args[1]
+       args[0] = args[1]; // Mover el código a args[0] para el manejo de credenciales
+  } else if (mcode && !args[0]) {
+      // Si se usó '.qr --code' o '.code' sin código, args[0] debe ser undefined
+      args[0] = undefined;
+  }
 }
+
+
 const pathCreds = path.join(pathYukiJadiBot, "creds.json")
 if (!fs.existsSync(pathYukiJadiBot)){
 fs.mkdirSync(pathYukiJadiBot, { recursive: true })}
 try {
 args[0] && args[0] != undefined ? fs.writeFileSync(pathCreds, JSON.stringify(JSON.parse(Buffer.from(args[0], "base64").toString("utf-8")), null, '\t')) : ""
-} catch {
-conn.reply(m.chat, `${emoji} Use correctamente el comando » ${usedPrefix + command} code`, m)
-return
+} catch (e) {
+  console.error('Error al escribir credenciales Base64:', e);
+  conn.reply(m.chat, `${emoji} Ocurrió un error al procesar las credenciales. Asegúrate de usar el código Base64 correctamente con el comando *${usedPrefix}qr --code* o *${usedPrefix}code*.`, m)
+  return
 }
 
 // Decode each base64 part first, then concatenate
@@ -120,24 +137,6 @@ version: version,
 generateHighQualityLinkPreview: true
 };
 
-/*const connectionOptions = {
-printQRInTerminal: false,
-logger: pino({ level: 'silent' }),
-auth: { creds: state.creds, keys: makeCacheableSignalKeyStore(state.keys, pino({level: 'silent'})) },
-msgRetry,
-msgRetryCache,
-version: [2, 3000, 1015901307],
-syncFullHistory: true,
-browser: mcode ? ['Ubuntu', 'Chrome', '110.0.5585.95'] : ['Yuki-Suou-Bot (Sub Bot)', 'Chrome','2.0.0'],
-defaultQueryTimeoutMs: undefined,
-getMessage: async (key) => {
-if (store) {
-//const msg = store.loadMessage(key.remoteJid, key.id)
-//return msg.message && undefined
-} return {
-conversation: 'Yuki-Suou-Bot',
-}}}*/
-
 let sock = makeWASocket(connectionOptions)
 sock.isInit = false
 let isInit = true
@@ -149,30 +148,33 @@ if (qr && !mcode) {
 if (m?.chat) {
 txtQR = await conn.sendMessage(m.chat, { image: await qrcode.toBuffer(qr, { scale: 8 }), caption: rtx.trim()}, { quoted: m})
 } else {
-return
+  // Si no hay objeto 'm' (ej. al reiniciar), no enviamos QR a un chat específico
+  console.log(chalk.yellow('QR generado, escanéalo desde la consola o espera si hay un chat asociado.'));
+  qrcode.toString(qr, { type: 'terminal' }, function (err, url) {
+    console.log(url);
+  });
+  // Aquí podrías guardar el QR en un archivo si quieres
 }
+// Si se envió un mensaje con el QR, programar su eliminación
 if (txtQR && txtQR.key) {
-setTimeout(() => { conn.sendMessage(m.sender, { delete: txtQR.key })}, 30000)
+setTimeout(() => { conn.sendMessage(m.sender, { delete: txtQR.key }).catch(e => console.error('Error al borrar QR:', e)) }, 45000) // Aumentamos el tiempo para que coincida con el mensaje
 }
 return
 }
 if (qr && mcode) {
 let secret = await sock.requestPairingCode((m.sender.split`@`[0]))
 secret = secret.match(/.{1,4}/g)?.join("-")
-//if (m.isWABusiness) {
 txtCode = await conn.sendMessage(m.chat, {text : rtx2}, { quoted: m })
 codeBot = await m.reply(secret)
-//} else {
-//txtCode = await conn.sendButton(m.chat, rtx2.trim(), wm, null, [], secret, null, m)
-//}
-console.log(secret)
+console.log('Código de emparejamiento:', secret);
 }
 if (txtCode && txtCode.key) {
-setTimeout(() => { conn.sendMessage(m.sender, { delete: txtCode.key })}, 30000)
+setTimeout(() => { conn.sendMessage(m.sender, { delete: txtCode.key }).catch(e => console.error('Error al borrar mensaje de código:', e)) }, 45000) // Aumentamos el tiempo
 }
 if (codeBot && codeBot.key) {
-setTimeout(() => { conn.sendMessage(m.sender, { delete: codeBot.key })}, 30000)
+setTimeout(() => { conn.sendMessage(m.sender, { delete: codeBot.key }).catch(e => console.error('Error al borrar código:', e)) }, 45000) // Aumentamos el tiempo
 }
+
 const endSesion = async (loaded) => {
 if (!loaded) {
 try {
@@ -186,46 +188,65 @@ delete global.conns[i]
 global.conns.splice(i, 1)
 }}
 
-const reason = lastDisconnect?.error?.output?.statusCode || lastDisconnect?.error?.output?.payload?.statusCode
+const reason = lastDisconnect?.error?.output?.statusCode || lastDisconnect?.error?.output?.payload?.statusCode;
+
 if (connection === 'close') {
-if (reason === 428) {
-console.log(chalk.bold.magentaBright(`\n╭┄┄┄┄┄┄┄┄┄┄┄┄┄┄ • • • ┄┄┄┄┄┄┄┄┄┄┄┄┄┄⟡\n┆ La conexión (+${path.basename(pathYukiJadiBot)}) fue cerrada inesperadamente. Intentando reconectar...\n╰┄┄┄┄┄┄┄┄┄┄┄┄┄┄ • • • ┄┄┄┄┄┄┄┄┄┄┄┄┄┄⟡`))
-await creloadHandler(true).catch(console.error)
+    console.log(chalk.bold.magentaBright(`\n╭┄┄┄┄┄┄┄┄┄┄┄┄┄┄ • • • ┄┄┄┄┄┄┄┄┄┄┄┄┄┄⟡\n┆ Conexión (+${path.basename(pathYukiJadiBot)}) cerrada. Motivo: ${reason || 'Desconocido'}.\n╰┄┄┄┄┄┄┄┄┄┄┄┄┄┄ • • • ┄┄┄┄┄┄┄┄┄┄┄┄┄┄⟡`));
+
+    // --- MODIFICACIÓN: Lógica para intentar reconectar ---
+    // Definir los motivos por los que se intentará la reconexión automática
+    const reconnectReasons = [
+        DisconnectReason.connectionClosed, // 428 - Conexión cerrada inesperadamente
+        DisconnectReason.connectionLost, // 408 - Conexión perdida o expirada
+        DisconnectReason.connectionReplaced, // 440 - Sesión reemplazada por otra
+        DisconnectReason.restartRequired, // 515 - Se requiere reinicio
+        DisconnectReason.timedOut, // Timeout
+        DisconnectReason.serverRestart, // 500 - Error interno del servidor
+        DisconnectReason.loggedOut, // 405 - Sesión cerrada desde el teléfono (AHORA INTENTA RECONECTAR)
+        DisconnectReason.badAuth // 401 - Credenciales inválidas (AHORA INTENTA RECONECTAR)
+        // Puedes añadir más DisconnectReason si encuentras otros que quieres manejar
+    ];
+
+    // Si el motivo de desconexión es uno de los que permiten reintentar
+    if (reconnectReasons.includes(reason)) {
+        console.log(chalk.bold.magentaBright(`\n┆ Intentando reconectar la sesión (+${path.basename(pathYukiJadiBot)})... Motivo original: ${reason}.\n╰┄┄┄┄┄┄┄┄┄┄┄┄┄┄ • • • ┄┄┄┄┄┄┄┄┄┄┄┄┄┄⟡`));
+
+        // Opcional: Notificar al usuario Sub-Bot sobre la desconexión e intento de reconexión
+        if (options.fromCommand && m?.chat) {
+             try {
+                let msgText = '*CONEXIÓN INTERRUMPIDA*\n\n> *Se ha perdido la conexión con el bot principal (Motivo: ' + reason + '). Intentando reconectar automáticamente...*\n> *Si el problema persiste, podría necesitar enlazar su cuenta de nuevo con un nuevo QR o código.*';
+
+                if (reason === DisconnectReason.connectionReplaced) msgText = '*SESIÓN REEMPLAZADA*\n\n> *Hemos detectado que la sesión se abrió en otro lugar. Intentando recuperar la conexión.*\n> *Si no fuiste tú, cierra la sesión en el otro dispositivo.*';
+
+                if (reason === DisconnectReason.loggedOut || reason === DisconnectReason.badAuth) msgText = '*SESIÓN CERRADA/INVÁLIDA (REINTENTANDO)*\n\n> *La sesión fue marcada como cerrada o inválida. Estoy intentando reconectar. Si falla (es decir, si desvinculaste la cuenta), deberás enlazarla de nuevo con un nuevo QR o código.*';
+
+                // Intentar enviar el mensaje al Sub-Bot
+                // Asegúrate de que el JID del Sub-Bot esté en el formato correcto
+                await conn.sendMessage(`${path.basename(pathYukiJadiBot)}@s.whatsapp.net`, { text: msgText }).catch(e => {
+                    console.error(chalk.bold.yellow(`Error al notificar a +${path.basename(pathYukiJadiBot)}: ${e.message}`));
+                    // Si falla el envío al sub-bot, no hacemos nada más aquí para no interrumpir el intento de reconexión
+                });
+
+             } catch (error) {
+               console.error(chalk.bold.yellow(`Error general al intentar notificar a +${path.basename(pathYukiJadiBot)}: ${error.message}`));
+             }
+        }
+
+        // Llamar a creloadHandler(true) para intentar restablecer la conexión
+        await creloadHandler(true).catch(console.error);
+
+    } else {
+        // Motivos de desconexión que NO están en la lista para reconexión automática.
+        // Estos podrían ser errores más graves que no se recuperan solos.
+        // Aquí podrías decidir si quieres borrar la sesión para forzar un reenlace manual.
+        // Por defecto, no hacemos nada más que el log inicial. El setInterval podría limpiar.
+         console.log(chalk.bold.magentaBright(`\n┆ Desconexión por motivo NO manejado para reconexión automática (${reason}). Si esto persiste, puede requerir revisión o reenlace manual.\n╰┄┄┄┄┄┄┄┄┄┄┄┄┄┄ • • • ┄┄┄┄┄┄┄┄┄┄┄┄┄┄⟡`));
+         // Opcional: Borrar sesión para forzar reenlace en caso de error irrecuperable definitivo
+         // Ejemplo: if (reason === algunMotivoFatal) { fs.rmdirSync(pathYukiJadiBot, { recursive: true }); console.log('Sesión borrada por error fatal.'); }
+    }
+    // --- FIN MODIFICACIÓN ---
 }
-if (reason === 408) {
-console.log(chalk.bold.magentaBright(`\n╭┄┄┄┄┄┄┄┄┄┄┄┄┄┄ • • • ┄┄┄┄┄┄┄┄┄┄┄┄┄┄⟡\n┆ La conexión (+${path.basename(pathYukiJadiBot)}) se perdió o expiró. Razón: ${reason}. Intentando reconectar...\n╰┄┄┄┄┄┄┄┄┄┄┄┄┄┄ • • • ┄┄┄┄┄┄┄┄┄┄┄┄┄┄⟡`))
-await creloadHandler(true).catch(console.error)
-}
-if (reason === 440) {
-console.log(chalk.bold.magentaBright(`\n╭┄┄┄┄┄┄┄┄┄┄┄┄┄┄ • • • ┄┄┄┄┄┄┄┄┄┄┄┄┄┄⟡\n┆ La conexión (+${path.basename(pathYukiJadiBot)}) fue reemplazada por otra sesión activa.\n╰┄┄┄┄┄┄┄┄┄┄┄┄┄┄ • • • ┄┄┄┄┄┄┄┄┄┄┄┄┄┄⟡`))
-try {
-if (options.fromCommand) m?.chat ? await conn.sendMessage(`${path.basename(pathYukiJadiBot)}@s.whatsapp.net`, {text : '*HEMOS DETECTADO UNA NUEVA SESIÓN, BORRE LA NUEVA SESIÓN PARA CONTINUAR*\n\n> *SI HAY ALGÚN PROBLEMA VUELVA A CONECTARSE*' }, { quoted: m || null }) : ""
-} catch (error) {
-console.error(chalk.bold.yellow(`Error 440 no se pudo enviar mensaje a: +${path.basename(pathYukiJadiBot)}`))
-}}
-if (reason == 405 || reason == 401) {
-console.log(chalk.bold.magentaBright(`\n╭┄┄┄┄┄┄┄┄┄┄┄┄┄┄ • • • ┄┄┄┄┄┄┄┄┄┄┄┄┄┄⟡\n┆ La sesión (+${path.basename(pathYukiJadiBot)}) fue cerrada. Credenciales no válidas o dispositivo desconectado manualmente.\n╰┄┄┄┄┄┄┄┄┄┄┄┄┄┄ • • • ┄┄┄┄┄┄┄┄┄┄┄┄┄┄⟡`))
-try {
-if (options.fromCommand) m?.chat ? await conn.sendMessage(`${path.basename(pathYukiJadiBot)}@s.whatsapp.net`, {text : '*SESIÓN PENDIENTE*\n\n> *INTENTÉ NUEVAMENTE VOLVER A SER SUB-BOT*' }, { quoted: m || null }) : ""
-} catch (error) {
-console.error(chalk.bold.yellow(`Error 405 no se pudo enviar mensaje a: +${path.basename(pathYukiJadiBot)}`))
-}
-fs.rmdirSync(pathYukiJadiBot, { recursive: true })
-}
-if (reason === 500) {
-console.log(chalk.bold.magentaBright(`\n╭┄┄┄┄┄┄┄┄┄┄┄┄┄┄ • • • ┄┄┄┄┄┄┄┄┄┄┄┄┄┄⟡\n┆ Conexión perdida en la sesión (+${path.basename(pathYukiJadiBot)}). Borrando datos...\n╰┄┄┄┄┄┄┄┄┄┄┄┄┄┄ • • • ┄┄┄┄┄┄┄┄┄┄┄┄┄┄⟡`))
-if (options.fromCommand) m?.chat ? await conn.sendMessage(`${path.basename(pathYukiJadiBot)}@s.whatsapp.net`, {text : '*CONEXIÓN PÉRDIDA*\n\n> *INTENTÉ MANUALMENTE VOLVER A SER SUB-BOT*' }, { quoted: m || null }) : ""
-return creloadHandler(true).catch(console.error)
-//fs.rmdirSync(pathYukiJadiBot, { recursive: true })
-}
-if (reason === 515) {
-console.log(chalk.bold.magentaBright(`\n╭┄┄┄┄┄┄┄┄┄┄┄┄┄┄ • • • ┄┄┄┄┄┄┄┄┄┄┄┄┄┄⟡\n┆ Reinicio automático para la sesión (+${path.basename(pathYukiJadiBot)}).\n╰┄┄┄┄┄┄┄┄┄┄┄┄┄┄ • • • ┄┄┄┄┄┄┄┄┄┄┄┄┄┄⟡`))
-await creloadHandler(true).catch(console.error)
-}
-if (reason === 403) {
-console.log(chalk.bold.magentaBright(`\n╭┄┄┄┄┄┄┄┄┄┄┄┄┄┄ • • • ┄┄┄┄┄┄┄┄┄┄┄┄┄┄⟡\n┆ Sesión cerrada o cuenta en soporte para la sesión (+${path.basename(pathYukiJadiBot)}).\n╰┄┄┄┄┄┄┄┄┄┄┄┄┄┄ • • • ┄┄┄┄┄┄┄┄┄┄┄┄┄┄⟡`))
-fs.rmdirSync(pathYukiJadiBot, { recursive: true })
-}}
+
 if (global.db.data == null) loadDatabase()
 if (connection == `open`) {
 if (!global.db.data?.users) loadDatabase()
@@ -236,20 +257,27 @@ console.log(chalk.bold.cyanBright(`\n❒⸺⸺⸺⸺【• SUB-BOT •】⸺⸺�
 sock.isInit = true
 global.conns.push(sock)
 
-m?.chat ? await conn.sendMessage(m.chat, {text: args[0] ? `@${m.sender.split('@')[0]}, ya estás conectado, leyendo mensajes entrantes...` : `@${m.sender.split('@')[0]}, genial ya eres parte de nuestra familia de Sub-Bots.\nhttps://chat.whatsapp.com/KqkJwla1aq1LgaPiuFFtEY`, mentions: [m.sender]}, { quoted: m }) : ''
+// Mensaje de confirmación al usuario que inició el comando
+if (options.fromCommand && m?.chat) {
+  conn.sendMessage(m.chat, {text: args[0] ? `@${m.sender.split('@')[0]}, ya estás conectado, leyendo mensajes entrantes...` : `@${m.sender.split('@')[0]}, genial ya eres parte de nuestra familia de Sub-Bots.\nhttps://chat.whatsapp.com/KqkJwla1aq1LgaPiuFFtEY`, mentions: [m.sender]}, { quoted: m })
+}
 
 }}
 setInterval(async () => {
+// Esta parte ayuda a limpiar sockets que no tienen usuario asociado,
+// lo cual puede pasar si la conexión falla gravemente antes de autenticarse.
+// Es un mecanismo de limpieza, generalmente seguro de mantener.
 if (!sock.user) {
 try { sock.ws.close() } catch (e) {
-//console.log(await creloadHandler(true).catch(console.error))
+  //console.log(e) // Puedes descomentar para debug
 }
 sock.ev.removeAllListeners()
 let i = global.conns.indexOf(sock)
-if (i < 0) return
+if (i < 0) return // Ya fue removido
 delete global.conns[i]
 global.conns.splice(i, 1)
-}}, 60000)
+console.log(chalk.yellow(`[Interval Cleanup] Sesión sin usuario removida.`))
+}}, 60000) // Revisa cada 60 segundos
 
 let handler = await import('../handler.js')
 let creloadHandler = async function (restatConn) {
@@ -258,31 +286,33 @@ const Handler = await import(`../handler.js?update=${Date.now()}`).catch(console
 if (Object.keys(Handler || {}).length) handler = Handler
 
 } catch (e) {
-console.error('⚠️ Nuevo error: ', e)
+console.error('⚠️ Nuevo error al recargar handler: ', e)
 }
 if (restatConn) {
 const oldChats = sock.chats
-try { sock.ws.close() } catch { }
-sock.ev.removeAllListeners()
+try { sock.ws.close() } catch { } // Cierra la conexión actual
+sock.ev.removeAllListeners() // Elimina los listeners de eventos antiguos
+// Crea una nueva instancia de la conexión con las mismas opciones y credenciales
 sock = makeWASocket(connectionOptions, { chats: oldChats })
-isInit = true
+isInit = true // Marca para re-inicializar listeners
 }
+// Vuelve a adjuntar los listeners de eventos (nuevos o antiguos si la recarga falló)
 if (!isInit) {
 sock.ev.off("messages.upsert", sock.handler)
 sock.ev.off("connection.update", sock.connectionUpdate)
 sock.ev.off('creds.update', sock.credsUpdate)
 }
-
 sock.handler = handler.handler.bind(sock)
-sock.connectionUpdate = connectionUpdate.bind(sock)
-sock.credsUpdate = saveCreds.bind(sock, true)
+sock.connectionUpdate = connectionUpdate.bind(sock) // Adjunta la función connectionUpdate modificada
+sock.credsUpdate = saveCreds.bind(sock, true) // Adjunta la función para guardar credenciales
 sock.ev.on("messages.upsert", sock.handler)
 sock.ev.on("connection.update", sock.connectionUpdate)
 sock.ev.on("creds.update", sock.credsUpdate)
 isInit = false
+console.log(chalk.green(`[Handler Reload] Handler y listeners actualizados ${restatConn ? 'y conexión reiniciada' : ''}.`))
 return true
 }
-creloadHandler(false)
+creloadHandler(false) // Carga inicial de handler y listeners
 })
 }
 
