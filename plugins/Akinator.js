@@ -148,7 +148,6 @@ let handler = async (m, { conn, text }) => {
 };
 
 handler.help = ['pinterest'];
-handler.customPrefix = /p|@|./i;
 handler.command = ['pinterest', 'pin', 'in', 'interest'];
 handler.tags = ['buscador'];
 
