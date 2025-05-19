@@ -1,38 +1,49 @@
-process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = '1'
-import './settings.js'
+Process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = '1'
+import './settings.js' // Asegúrate de que settings.js exista y esté correcto
 import {createRequire} from 'module'
 import path, {join} from 'path'
 import {fileURLToPath, pathToFileURL} from 'url'
 import {platform} from 'process'
 import * as ws from 'ws'
-import {readdirSync, statSync, unlinkSync, existsSync, readFileSync, rmSync, watch} from 'fs'
+// Asegúrate de importar 'fs' completo y 'child_process'
+import fs, {readdirSync, statSync, unlinkSync, existsSync, readFileSync, rmSync, watch} from 'fs';
+import { promises as fsp } from 'fs'; // Importa promises de fs para mkdir asíncrono
 import yargs from 'yargs';
-import {spawn} from 'child_process'
+import {spawn} from 'child_process'; // Importa spawn directamente
 import lodash from 'lodash'
 import chalk from 'chalk'
 import syntaxerror from 'syntax-error'
-import {tmpdir} from 'os'
+import {tmpdir} from 'os' // Importa tmpdir y os
+import os from 'os'; // Importa os
 import {format} from 'util'
 import boxen from 'boxen'
-import P from 'pino'
+// Importa pino solo una vez
 import pino from 'pino'
-import Pino from 'pino'
 import {Boom} from '@hapi/boom'
-import {makeWASocket, protoType, serialize} from './lib/simple.js'
+import {makeWASocket, protoType, serialize} from './lib/simple.js' // Asegúrate de que simple.js exista y esté correcto
 import {Low, JSONFile} from 'lowdb'
-import {mongoDB, mongoDBV2} from './lib/mongoDB.js' // Assuming these exist and are used
-import store from './lib/store.js' // Assuming this exists and is used
+// Importa mongoDB si los usas, asegúrate de que existan
+// import {mongoDB, mongoDBV2} from './lib/mongoDB.js'
+// Importa cloudDBAdapter si la usas
+// import { cloudDBAdapter } from './lib/cloudDBAdapter.js';
+import store from './lib/store.js' // Asegúrate de que store.js exista y esté correcto
 const {proto} = (await import('@whiskeysockets/baileys')).default
 const {DisconnectReason, useMultiFileAuthState, MessageRetryMap, fetchLatestBaileysVersion, makeCacheableSignalKeyStore, jidNormalizedUser, PHONENUMBER_MCC} = await import('@whiskeysockets/baileys')
 import readline from 'readline'
 import NodeCache from 'node-cache'
+
+// Destructuring de objetos importados
 const {CONNECTING} = ws
 const {chain} = lodash
+
+// Configuración de puertos
 const PORT = process.env.PORT || process.env.SERVER_PORT || 3000
 
+// Extiende prototipos y serializa (mantener si es necesario para simple.js)
 protoType()
 serialize()
 
+// Definiciones globales para compatibilidad con CommonJS
 global.__filename = function filename(pathURL = import.meta.url, rmPrefix = platform !== 'win32') {
 return rmPrefix ? /file:\/\/\//.test(pathURL) ? fileURLToPath(pathURL) : pathURL : pathToFileURL(pathURL).toString();
 }; global.__dirname = function dirname(pathURL) {
@@ -41,582 +52,595 @@ return path.dirname(global.__filename(pathURL, true))
 return createRequire(dir)
 }
 
+// Definición global para APIs (si la usas)
 global.API = (name, path = '/', query = {}, apikeyqueryname) => (name in global.APIs ? global.APIs[name] : name) + path + (query || apikeyqueryname ? '?' + new URLSearchParams(Object.entries({...query, ...(apikeyqueryname ? {[apikeyqueryname]: global.APIKeys[name in global.APIs ? global.APIs[name] : name]} : {})})) : '');
 
+// Marca de tiempo de inicio
 global.timestamp = {start: new Date}
 
+// Obtener el directorio actual del script
 const __dirname = global.__dirname(import.meta.url)
 
+// Parsear argumentos de línea de comandos
 global.opts = new Object(yargs(process.argv.slice(2)).exitProcess(false).parse())
-global.prefix = new RegExp('^[/.$#!]')
-// global.opts['db'] = process.env['db']
 
-global.db = new Low(/https?:\/\//.test(opts['db'] || '') ? new cloudDBAdapter(opts['db']) : new JSONFile('src/database/database.json'))
+// Definir el prefijo de comandos (ajusta según necesites)
+global.prefix = new RegExp('^[' + (opts['prefix'] || '/.$#!').replace(/[|\\{}()[\]^$+*?.\-\^]/g, '\\$&') + ']') // Usa opts['prefix'] si está definido
 
+// Configuración de la base de datos LowDB o CloudDB
+// Asegúrate de tener las adaptadores (JSONFile, cloudDBAdapter, etc.) instalados
+global.db = new Low(/https?:\/\//.test(opts['db'] || '') ? new cloudDBAdapter(opts['db']) : new JSONFile('storage/databases/database.json')) // Ajusta la ruta si es diferente
+
+// Alias para la base de datos global
 global.DATABASE = global.db
+
+// Función para cargar la base de datos
 global.loadDatabase = async function loadDatabase() {
 if (global.db.READ) {
 return new Promise((resolve) => setInterval(async function() {
 if (!global.db.READ) {
 clearInterval(this)
 resolve(global.db.data == null ? global.loadDatabase() : global.db.data);
-}}, 1 * 1000))
+}}, 1 * 1000)) // Esperar 1 segundo
 }
-if (global.db.data !== null) return
-global.db.READ = true
-await global.db.read().catch(console.error)
-global.db.READ = null
-global.db.data = {
+if (global.db.data !== null) return // Ya cargada
+global.db.READ = true // Marcar como en lectura
+await global.db.read().catch(console.error) // Intentar leer
+global.db.READ = null // Desmarcar lectura
+global.db.data = { // Inicializar datos si están vacíos
 users: {},
 chats: {},
 stats: {},
 msgs: {},
 sticker: {},
-settings: {},
-...(global.db.data || {}),
+settings: {}, // Añadir o asegurar que settings existe
+...(global.db.data || {}), // Mantener datos existentes
 }
-global.db.chain = chain(global.db.data)
+global.db.chain = chain(global.db.data) // Encadenar lodash
 }
-loadDatabase()
+loadDatabase() // Cargar base de datos al iniciar
 
-// --- MULTI-SESSION HANDLING START ---
+// Directorio por defecto para la sesión principal del bot
+global.sessions = opts._[0] || 'sessions'; // Usar el primer argumento o 'sessions'
 
-// Use a map to store bot instances, keyed by their session directory name
+// --- MANEJO DE MULTI-SESIÓN INICIO ---
+
+// Usar un mapa para almacenar las instancias de los bots, con la clave siendo el nombre del directorio de sesión
 global.allBots = {};
 
-// Function to create and manage a single bot connection instance
+// Logger principal para mensajes generales del script
+const logger = pino({ level: 'silent' }); // Nivel de log global para el script principal
+
+
+// Función para crear y gestionar una única conexión de bot (principal o sub)
 async function createBotConnection(sessionDir, isMain = false) {
-    const sessionPath = `./${sessionDir}`;
-    const { state, saveState } = await useMultiFileAuthState(sessionPath);
-    const msgRetryCounterMap = new NodeCache(); // Use NodeCache as MessageRetryMap
-    const msgRetryCounterCache = new NodeCache();
-    const { version } = await fetchLatestBaileysVersion();
-    let phoneNumber = global.botNumberCode; // This might need adjustment if different bots have different numbers
+    const sessionPath = `./${sessionDir}`; // Ruta completa al directorio de sesión
 
-    const methodCodeQR = process.argv.includes("qr");
-    const methodCode = !!phoneNumber || process.argv.includes("code");
-    const MethodMobile = process.argv.includes("mobile");
-    const colores = chalk.bgMagenta.white;
-    const opcionQR = chalk.bold.green;
-    const opcionTexto = chalk.bold.cyan;
-    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-    const question = (texto) => new Promise((resolver) => rl.question(texto, resolver));
+    // --- Manejo de Autenticación ---
+    const { state, saveCreds: saveState } = await useMultiFileAuthState(sessionPath);
+    const msgRetryCounterCache = new NodeCache(); // Cache para reintentos de mensajes
 
-    let opcion;
-    // Decide how to handle QR/Code option for multiple bots.
-    // For simplicity, this part still behaves like the original, potentially only affecting the first bot created.
-    // A real multi-session setup might require prompting per new session or using different methods.
-    if (methodCodeQR) {
-        opcion = '1';
-    }
-    if (!methodCodeQR && !methodCode && !existsSync(`${sessionPath}/creds.json`) && isMain) { // Only prompt for main bot initially
-        do {
-            opcion = await question(colores(`Seleccione una opción para ${sessionDir}:\n`) + opcionQR('1. Con código QR\n') + opcionTexto('2. Con código de texto de 8 dígitos\n--> '));
-
-            if (!/^[1-2]$/.test(opcion)) {
-                console.log(chalk.bold.redBright(`🍭 No se permiten numeros que no sean 1 o 2, tampoco letras o símbolos especiales.`));
-            }
-        } while (opcion !== '1' && opcion !== '2' || existsSync(`${sessionPath}/creds.json`));
-    } else if (!existsSync(`${sessionPath}/creds.json`)) {
-        // For sub-bots or main bot if creds don't exist and not using QR/Code flags, default to QR or handle differently
-        opcion = methodCodeQR ? '1' : '2'; // Default to QR if flag set, otherwise try code? Or default to QR for new sessions?
-        // This logic is tricky for multiple sessions and needs careful design based on how you register sub-bots.
-         console.log(chalk.yellow(`Attempting to connect ${sessionDir} (assuming QR or pre-registered)...`));
-    } else {
-        // If creds exist, no need to prompt
-        opcion = '0'; // Indicate no user input needed
-    }
-
-
+    // --- Opciones de Conexión ---
     const connectionOptions = {
-        logger: pino({ level: 'silent' }),
-        // Only print QR if it's the initial setup for this specific bot and QR option is selected
-        printQRInTerminal: !existsSync(`${sessionPath}/creds.json`) && (opcion == '1' || methodCodeQR),
-        mobile: MethodMobile,
-        browser: (opcion == '1' || methodCodeQR) ? [`${nameqr || 'Bot'} (${sessionDir})`, 'Edge', '20.0.04'] : [`Ubuntu (${sessionDir})`, 'Edge', '110.0.1587.56'],
+        logger: pino({ level: 'info' }).child({ class: `${isMain ? 'main' : 'sub'}-${sessionDir}` }), // Logger específico por bot, nivel info
+        printQRInTerminal: isMain && !existsSync(`${sessionPath}/creds.json`) && process.argv.includes("qr"), // Solo imprimir QR para el principal si no hay credenciales y se usa el flag 'qr'
+        mobile: process.argv.includes("mobile"), // Flag mobile (si aplica)
+        browser: isMain ? ['Bot Principal', 'Edge', '20.0.04'] : [`Sub-bot ${sessionDir}`, 'Edge', '110.0.1587.56'], // Identificador en WhatsApp
         auth: {
             creds: state.creds,
-            keys: makeCacheableSignalKeyStore(state.keys, Pino({ level: "fatal" }).child({ level: "fatal" })),
+            keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" }).child({ class: `keys-${sessionDir}` })), // Logger para keys, nivel fatal
         },
-        markOnlineOnConnect: true,
+        markOnlineOnConnect: true, // Marcar como online al conectar
         generateHighQualityLinkPreview: true,
         getMessage: async (clave) => {
-            // This getMessage logic might need to be per-bot if different bots use different storage
-            let jid = jidNormalizedUser(clave.remoteJid)
-            let msg = await store.loadMessage(jid, clave.id)
-            return msg?.message || ""
+            // Implementación de getMessage. Puede requerir lógica diferente si los sub-bots tienen stores separados.
+            // Usaremos el store global por defecto para simplicidad, puede que no funcione para todos los casos.
+            let jid = jidNormalizedUser(clave.remoteJid);
+            // Intentar cargar desde el store global
+            let msg = await store.loadMessage(jid, clave.id).catch(e => {
+                 //console.error(`[${sessionDir}] Error loading message from store:`, e); // Opcional: log error loading
+                 return undefined;
+            });
+             // Si no se encuentra en el store global o no existe, devolver vacío
+            return msg?.message || "";
         },
         msgRetryCounterCache,
-        msgRetryCounterMap,
+        msgRetryCounterMap: new NodeCache(), // Otro cache para reintentos
         defaultQueryTimeoutMs: undefined,
-        version: [2, 3000, 1015901307],
+        version: [2, 3000, 1015901307], // Versión específica de Baileys
+        // Opciones adicionales si se usan
+        // getBusinessMessage: async (clave) => { ... },
+        // makeSocket: (config) => new ws.WebSocket({...})
     };
 
+    // Crear la instancia de conexión de Baileys
     const bot = makeWASocket(connectionOptions);
 
-    bot.isInit = false;
-    bot.well = false;
-    bot.sessionDir = sessionDir; // Store session directory for reference
-    bot.isMain = isMain; // Flag to identify the main bot
+    // --- Propiedades específicas de la instancia del bot ---
+    bot.isInit = false; // Bandera de inicialización
+    bot.well = false; // Otra bandera (si es usada en handler.js)
+    bot.sessionDir = sessionDir; // Almacenar el nombre del directorio de sesión
+    bot.isMain = isMain; // Bandera para identificar el bot principal
 
-    // Handle pairing code request for this specific bot if needed (likely only for main bot or first time setup)
-     if (!existsSync(`${sessionPath}/creds.json`) && (opcion === '2' || methodCode)) {
-         if (!bot.authState.creds.registered) {
-             if (MethodMobile) throw new Error(`Cannot use pairing code with mobile API for ${sessionDir}`);
+    // --- Lógica de Emparejamiento (Solo si no existen credenciales) ---
+     if (!existsSync(`${sessionPath}/creds.json`)) {
+         // Esta parte interactiva es compleja para múltiples bots.
+         // Asumimos que si no hay credenciales, se necesita emparejar.
+         // Si es el bot principal y se usa código o QR, se intentará aquí.
+         // Para sub-bots, generalmente se espera que ya tengan una sesión válida al agregarlos a OthoJadiBot.
+         // Si un sub-bot necesita emparejarse por primera vez, deberías iniciarlo individualmente
+         // o adaptar esta lógica para preguntar por número/QR por cada sub-bot nuevo.
 
-             let numeroTelefono = phoneNumber;
-             if (!numeroTelefono) {
-                 // Prompt for phone number if not provided for this bot
-                 // This interactive part is hard to scale for many bots at once
-                 console.log(chalk.bgBlack(chalk.bold.greenBright(`🍁 Ingrese el número de WhatsApp para ${sessionDir}.\n🍭  Ejemplo: 521657×××××××\n${chalk.bold.magentaBright('---> ')}`)));
-                 numeroTelefono = await question(''); // Wait for user input per bot
-                 numeroTelefono = numeroTelefono.replace(/[^0-9]/g, '');
-             } else {
-                 numeroTelefono = numeroTelefono.replace(/[^0-9]/g, '');
+         if (isMain && (process.argv.includes("code") || process.argv.includes("qr"))) {
+             const MethodMobile = process.argv.includes("mobile");
+             let phoneNumber = global.botNumberCode; // Asumiendo que global.botNumberCode existe
+
+             // Preguntar por número solo si es el bot principal, se usa código y no hay número pre-configurado
+             if (process.argv.includes("code") && !phoneNumber && !MethodMobile) {
+                 const colores = chalk.bgMagenta.white;
+                 console.log(colores(`\n${chalk.bold.greenBright('🍁 Ingrese el número de WhatsApp para el Bot Principal.')}\n${chalk.bold.cyanBright('🍭  Ejemplo: 521657×××××××')}\n${chalk.bold.magentaBright('---> ')}`));
+                 phoneNumber = await new Promise(resolve => {
+                     const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+                     rl.question('', (input) => {
+                         rl.close();
+                         resolve(input);
+                     });
+                 });
+                  phoneNumber = phoneNumber.replace(/[^0-9]/g, '');
+             } else if (MethodMobile) {
+                  throw new Error(`No se puede usar código de emparejamiento con la API móvil para ${sessionDir}`);
              }
 
-             if (!Object.keys(PHONENUMBER_MCC).some(v => numeroTelefono.startsWith(v))) {
-                 console.log(chalk.bold.redBright(`Invalid phone number format for ${sessionDir}`));
-                 // Decide how to handle invalid numbers for a bot
-                 // process.exit(0) // Exiting might stop all bots
-             } else {
-                 setTimeout(async () => {
-                     try {
-                         let codigo = await bot.requestPairingCode(numeroTelefono);
-                         codigo = codigo?.match(/.{1,4}/g)?.join("-") || codigo;
-                         console.log(chalk.bold.white(chalk.bgMagenta(`⭐️ Código para ${sessionDir}: `)), chalk.bold.white(chalk.white(codigo)));
-                     } catch (error) {
-                         console.error(chalk.bold.red(`Error requesting pairing code for ${sessionDir}: ${error}`));
-                         // Handle error in getting pairing code
-                     }
-                 }, 3000);
+
+             if (phoneNumber && !Object.keys(PHONENUMBER_MCC).some(v => phoneNumber.startsWith(v))) {
+                 console.error(chalk.bold.redBright(`Número de teléfono inválido para ${sessionDir}: ${phoneNumber}`));
+                 // Decide si salir o intentar con QR
+                 // process.exit(0);
+             } else if (phoneNumber) {
+                  // Solicitar código de emparejamiento si se tiene número
+                  setTimeout(async () => {
+                      try {
+                           let codigo = await bot.requestPairingCode(phoneNumber);
+                           codigo = codigo?.match(/.{1,4}/g)?.join("-") || codigo;
+                           console.log(chalk.bold.white(chalk.bgMagenta(`⭐️ Código para ${sessionDir}: `)), chalk.bold.white(chalk.white(codigo)));
+                      } catch (error) {
+                           console.error(chalk.bold.red(`Error solicitando código para ${sessionDir}: ${error}`));
+                      }
+                  }, 3000); // Esperar 3 segundos
+             } else if (process.argv.includes("qr")) {
+                 console.log(chalk.yellow(`[${sessionDir}] Esperando código QR...`));
+                 // El QR se imprimirá automáticamente si printQRInTerminal es true
              }
-             // Close readline after getting the number for this specific bot's prompt if needed
-             if (!phoneNumber) rl.close();
+
+
+         } else if (!isMain) {
+             console.warn(chalk.yellow(`[SUB-BOT] No se encontraron credenciales para ${sessionDir}. Por favor, asegúrese de que la sesión esté registrada o elimine la carpeta e inicie este sub-bot individualmente para emparejarlo.`));
+             // No intentar emparejar automáticamente para sub-bots si no se dan flags
+             // La conexión probablemente fallará con loggedOut/badSession
          }
      }
 
 
-    // Reconnection logic for THIS specific bot instance
+    // --- Manejo de Eventos de Conexión para ESTE BOT ---
     bot.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect, isNewLogin } = update;
-        bot.stopped = connection; // Update stopped status for this bot instance
+        bot.stopped = connection; // Actualizar el estado 'stopped' de esta instancia
 
-        if (isNewLogin) bot.isInit = true;
+        if (isNewLogin) bot.isInit = true; // Marcar como nuevo login para esta instancia
 
         const code = lastDisconnect?.error?.output?.statusCode || lastDisconnect?.error?.output?.payload?.statusCode;
 
-        if (code && code !== DisconnectReason.loggedOut && bot?.ws.socket == null) {
-            console.log(chalk.bold.redBright(`\n⚠️ CONEXIÓN CERRADA para ${sessionDir} (Code: ${code}). Intentando reconectar...`));
-            // Attempt to restart this specific bot connection
-            // This simple re-creation might lead to issues. A robust solution would track instances and replace them.
-            // For now, let's just call the create function again. This might create a new instance without cleaning up the old.
-            // A better approach: Remove the old bot instance from global.allBots and add the new one after creation.
-            // delete global.allBots[sessionDir]; // Before creating new
-             await createBotConnection(sessionDir, isMain); // Recreate the connection
-            // global.allBots[sessionDir] = newBotInstance; // Add new one
-             global.timestamp.connect = new Date; // This timestamp is global, might not be useful per bot
-        }
-
         if (connection == 'open') {
-             console.log(boxen(chalk.bold(`¡CONECTADO con ${sessionDir}!`), { borderStyle: 'round', borderColor: 'green', title: chalk.green.bold('● CONEXIÓN ●'), titleAlignment: '', float: '' }));
-        }
+             console.log(boxen(chalk.bold(`¡CONECTADO con ${sessionDir}! (${bot.user?.id.split(':')[0]})`), { borderStyle: 'round', borderColor: 'green', title: chalk.green.bold('● CONEXIÓN ●'), titleAlignment: 'center' }));
+        } else if (connection === 'close') {
+             let reason = new Boom(lastDisconnect?.error)?.output?.statusCode;
+             console.error(chalk.bold.redBright(`\n⚠️ Conexión para ${sessionDir} cerrada. Razón: ${reason || 'Desconocida'}`));
 
-        let reason = new Boom(lastDisconnect?.error)?.output?.statusCode;
-        if (connection === 'close') {
-             console.log(chalk.bold.redBright(`\n⚠️ Conexión para ${sessionDir} cerrada. Razon: ${reason || 'Desconocida'}`));
-            // The reconnection logic is handled above based on codes.
-            // You might add more specific messages here based on reason.
-            if (reason === DisconnectReason.badSession) {
-                console.log(chalk.bold.cyanBright(`\n⚠️ SESIÓN INVÁLIDA para ${sessionDir}, BORRE LA CARPETA ${sessionDir} Y RE-REGISTRE ⚠️`));
-            } else if (reason === DisconnectReason.loggedOut) {
-                console.log(chalk.bold.redBright(`\n⚠️ SESIÓN CERRADA para ${sessionDir}, BORRE LA CARPETA ${sessionDir} Y RE-REGISTRE ⚠️`));
+            // --- Lógica de Reconexión/Manejo de Desconexión ---
+            if (reason === DisconnectReason.connectionClosed ||
+                reason === DisconnectReason.connectionLost ||
+                reason === DisconnectReason.restartRequired ||
+                reason === DisconnectReason.timedOut) {
+                 console.log(chalk.yellow(`[${sessionDir}] Intentando reconectar en 5 segundos...`));
+                 // Pequeño retraso antes de intentar reconectar
+                 setTimeout(() => createBotConnection(sessionDir, isMain), 5000); // Intentar crear una nueva conexión
+            } else if (reason === DisconnectReason.loggedOut || reason === DisconnectReason.badSession) {
+                 console.error(chalk.bold.cyanBright(`\n⚠️ SESIÓN INVÁLIDA para ${sessionDir}. Elimine la carpeta "${sessionDir}" y re-empareje.`));
+                 // Eliminar la referencia de este bot de la lista global ya que la sesión es inválida
+                 delete global.allBots[sessionDir];
+                 // Opcional: Eliminar archivos de sesión inválidos
+                 /*
+                 if (existsSync(sessionPath)) {
+                     console.log(chalk.red(`[${sessionDir}] Eliminando directorio de sesión inválido: ${sessionPath}`));
+                      fsp.rm(sessionPath, { recursive: true, force: true }).catch(console.error);
+                 }
+                 */
+            } else if (reason === DisconnectReason.connectionReplaced) {
+                 console.error(chalk.bold.redBright(`\n⚠️ Conexión para ${sessionDir} reemplazada. Otra sesión abierta en otro lugar.`));
+                 // Eliminar la referencia de este bot, no intentar reconectar automáticamente
+                 delete global.allBots[sessionDir];
+            } else {
+                 console.warn(chalk.yellow(`[${sessionDir}] Desconectado por razón no manejada ${reason}. Intentando reconectar en 5 segundos...`));
+                 setTimeout(() => createBotConnection(sessionDir, isMain), 5000); // Intentar crear una nueva conexión
             }
-            // Other reasons like connectionClosed, connectionLost, timedOut are handled by the reconnect logic above.
+             // --- Fin Lógica de Reconexión ---
         }
     });
+    // --- Fin Eventos de Conexión ---
 
-    // Attach other event listeners (messages.upsert, creds.update) for THIS specific bot
-    // The handler needs to be designed to accept the bot instance
+
+    // --- Adjuntar otros Eventos ---
+    // Evento para mensajes entrantes
     bot.ev.on('messages.upsert', async (messages) => {
-         // Pass the connection instance and messages to the handler
-         // The handler function './handler.js' needs to be modified to accept 'bot' as an argument
-         // and use 'bot' for sending messages, accessing bot info, etc.
-         // For example: await handler.handler(bot, messages);
-         // You'll need to adjust your handler's function signature and logic.
-         // For now, binding might work if handler uses 'this', but explicitly passing is clearer.
-         // await handler.handler.bind(bot)(messages); // Example using bind
+         // Llamar al handler principal, pasándole la instancia 'bot' actual
          if (global.handler && typeof global.handler.handler === 'function') {
-              await global.handler.handler(bot, messages); // Pass bot instance
+              // El handler debe esperar 'bot' como primer argumento: async function handler(bot, messages, m)
+              await global.handler.handler(bot, messages); // Pasar la instancia del bot
          } else {
-              console.error("Handler function not loaded or not found.");
+              console.error(`[${sessionDir}] Handler function not loaded or not found.`);
          }
     });
 
-    // Use saveState provided by useMultiFileAuthState for THIS bot
-    bot.ev.on('creds.update', saveState);
-
-    // Add the bot instance to the global collection
-    global.allBots[sessionDir] = bot;
-
-    return bot; // Return the created bot instance
-}
-
-// Function to start all bot connections
-async function startAllBots() {
-    // Define the directories to check for sessions
-    const sessionDirectories = [global.sessions || 'sessions', 'OthoJadiBot']; // Check main sessions and OthoJadiBot
-
-    for (const baseDir of sessionDirectories) {
-        if (existsSync(`./${baseDir}`)) {
-            // If it's the main sessions dir, try to connect directly if creds.json exists
-            if (baseDir === (global.sessions || 'sessions') && existsSync(`./${baseDir}/creds.json`)) {
-                 console.log(chalk.bold.blue(`\nIniciando bot principal desde ${baseDir}...`));
-                await createBotConnection(baseDir, true); // Start main bot connection
-            } else if (baseDir === 'OthoJadiBot') {
-                // If it's the OthoJadiBot dir, scan subdirectories
-                const sessionFolders = readdirSync(`./${baseDir}`)
-                    .filter(item => statSync(join(`./${baseDir}`, item)).isDirectory());
-
-                for (const folder of sessionFolders) {
-                    const sessionDir = join(baseDir, folder);
-                    if (existsSync(join(`./${sessionDir}`, 'creds.json'))) {
-                        console.log(chalk.bold.blue(`\nIniciando sub-bot desde ${sessionDir}...`));
-                        await createBotConnection(sessionDir, false); // Start sub-bot connection
-                    } else {
-                        console.warn(chalk.yellow(`Skipping directory ${sessionDir}: creds.json not found.`));
-                    }
-                }
-            } else if (baseDir === (global.sessions || 'sessions') && !existsSync(`./${baseDir}/creds.json`)) {
-                 // If main sessions dir exists but no creds, initiate first time login
-                 console.log(chalk.bold.yellow(`\nIniciando primer inicio de sesión para el bot principal en ${baseDir}...`));
-                 // The initial QR/Code logic outside the createBotConnection loop will handle this for the first bot created.
-                 // We still need to call createBotConnection to set up the instance and listeners.
-                 await createBotConnection(baseDir, true);
-            }
+    // Evento para actualizar credenciales (guardar sesión)
+    bot.ev.on('creds.update', saveState); // Usar la función saveState específica de useMultiFileAuthState
 
 
-        } else {
-             console.log(chalk.bold.yellow(`Directorio de sesiones "${baseDir}" no encontrado. Saltando.`));
-        }
-    }
-
-    // Now global.allBots contains all active connections
-    const totalBots = Object.keys(global.allBots).length;
-    if (totalBots > 0) {
-        console.log(boxen(chalk.bold(`¡${totalBots} BOT(S) INICIALIZADO(S)!`), { borderStyle: 'round', borderColor: 'green', title: chalk.green.bold('● ESTADO ●'), titleAlignment: '', float: '' }));
+    // Añadir la instancia del bot a la colección global si la conexión fue exitosa (tiene credenciales o está intentando obtenerlas)
+    // La conexión puede no estar 'open' todavía, pero la instancia existe.
+    if (bot.authState.creds || !existsSync(`${sessionPath}/creds.json`)) { // Si tiene creds O necesita registrarse
+         global.allBots[sessionDir] = bot;
+         console.log(chalk.cyan(`[${sessionDir}] Instancia de bot creada y añadida a global.allBots.`));
     } else {
-         console.log(boxen(chalk.bold(`¡NINGÚN BOT INICIALIZADO!`), { borderStyle: 'round', borderColor: 'red', title: chalk.red.bold('● ESTADO ●'), titleAlignment: '', float: '' }));
+        console.warn(chalk.yellow(`[${sessionDir}] No se pudo crear la instancia de bot (posiblemente sin creds y sin flags de registro).`));
     }
+
+
+    return bot; // Devolver la instancia creada
 }
 
-// Call the function to start all connections
-startAllBots().catch(console.error);
+// --- Función principal para iniciar todas las conexiones de bots ---
+async function startAllBots() {
+    console.log(chalk.bold.white(boxen(chalk.bold('Iniciando Bots Multi-Sesión'), { borderStyle: 'double', padding: 1, margin: 1, float: 'center', align: 'center', borderColor: 'blue' })));
 
-// --- MULTI-SESSION HANDLING END ---
-
-
-// The rest of your script needs significant adaptation.
-// global.conn is no longer a single object. You need to iterate over global.allBots
-// or pass the specific bot instance around.
-
-// Example: The setIntervals need to check each bot's status
-// global.stopped is now per bot, needs to be accessed like bot.stopped
-setInterval(async () => {
-    for (const sessionDir in global.allBots) {
-        const bot = global.allBots[sessionDir];
-        if (bot.stopped === 'close' || !bot || !bot.user) {
-            // Consider logging which bot is not connected if needed
-            continue; // Skip disconnected bots
-        }
-        // Your existing cleanup logic here, potentially per bot or global
-        // await clearTmp() // clearTmp seems global
-        // await purgeSession() // purgeSession targets global.sessions, needs review
-        // await purgeSessionSB() // purgeSessionSB targets ${jadi}, needs review if jadi is OthoJadiBot
-        // await purgeOldFiles() // purgeOldFiles targets global.sessions and ${jadi}, needs review
-    }
-     await clearTmp();
-     console.log(chalk.bold.cyanBright(`\n╭» 🟢 MULTIMEDIA 🟢\n│→ ARCHIVOS DE LA CARPETA TMP ELIMINADAS\n╰― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― 🗑️♻️`));
-}, 1000 * 60 * 4); // 4 min
-
-// You need to review all intervals and other logic that uses global.conn or assumes a single bot.
-
-process.on('uncaughtException', console.error)
-
-let handler = await import('./handler.js')
-global.reloadHandler = async function(restatConn) { // restatConn might be less relevant now
-try {
-    const Handler = await import(`./handler.js?update=${Date.now()}`).catch(console.error);
-    if (Object.keys(Handler || {}).length) global.handler = Handler; // Update the global handler reference
-} catch (e) {
-    console.error("Error reloading handler:", e);
-}
-
-// Re-attach the potentially new handler logic to all active bot connections
-for (const sessionDir in global.allBots) {
-    const bot = global.allBots[sessionDir];
-    if (bot.ev) {
-        // Remove old messages.upsert listener if it exists to prevent duplicates
-        // Note: Removing specific anonymous listeners added by .on is tricky.
-        // A better pattern is to store listener references or use .off with the exact function.
-        // For simplicity here, we might risk temporary duplicate listeners or need to restart bots to apply handler changes cleanly.
-
-        // If you need to ensure only one messages.upsert listener is active:
-        // You might need a flag or a way to store the listener function reference per bot
-        // Or, restart the bot instance after reloading handler (more disruptive)
-        // For now, just adding the new listener - this is NOT ideal and will add duplicate listeners on reload!
-        // Proper fix requires tracking and removing the old listener function.
-
-        // Example: Assuming the handler is now structured to receive the bot instance
-         if (global.handler && typeof global.handler.handler === 'function') {
-             // To avoid duplicate listeners on reload, a more advanced approach is needed.
-             // This simple add will create duplicates every time reloadHandler is called without a bot restart.
-             // Consider restarting bots or implementing proper listener management.
-             // bot.ev.on('messages.upsert', async (messages) => { await global.handler.handler(bot, messages); }); // This adds a NEW listener every time!
-             console.warn(chalk.yellow(`Handler reload might add duplicate listeners for ${sessionDir}. Consider restarting bots.`));
-         } else {
-              console.error("Cannot re-attach handler: Handler function not loaded or not found.");
+    // 1. Verificar y iniciar el bot principal (directorio sessions o global.sessions)
+    const mainSessionDir = global.sessions || 'sessions';
+    if (existsSync(`./${mainSessionDir}`)) {
+        console.log(chalk.bold.blue(`\nVerificando directorio de sesión principal: ./${mainSessionDir}...`));
+        // Siempre intentar crear la conexión principal. createBotConnection manejará si necesita registro.
+         await createBotConnection(mainSessionDir, true);
+    } else {
+        console.warn(chalk.bold.yellow(`Directorio de sesión principal "${mainSessionDir}" no encontrado. Creando y iniciando registro...`));
+         try {
+             await fsp.mkdir(`./${mainSessionDir}`, { recursive: true }); // Crear directorio si no existe
+             await createBotConnection(mainSessionDir, true); // Iniciar registro
+         } catch(e) {
+             console.error(chalk.red(`Error al crear directorio de sesión principal ${mainSessionDir}:`), e);
          }
-
-        // connection.update and creds.update are managed per bot in createBotConnection and typically don't need re-attaching here unless their core logic changes.
     }
+
+    // 2. Verificar y iniciar los sub-bots (directorio OthoJadiBot)
+    const subBotBaseDir = 'OthoJadiBot'; // El directorio especificado para sub-bots
+    if (existsSync(`./${subBotBaseDir}`)) {
+        console.log(chalk.bold.blue(`\nEscaneando directorio de sub-bots: ./${subBotBaseDir}...`));
+        try {
+            const subBotEntries = readdirSync(`./${subBotBaseDir}`); // Leer contenido de OthoJadiBot
+            const sessionFolders = subBotEntries.filter(item => {
+                const itemPath = join(`./${subBotBaseDir}`, item);
+                // Verificar si es un directorio Y si contiene creds.json
+                return statSync(itemPath).isDirectory() && existsSync(join(itemPath, 'creds.json'));
+            });
+
+            if (sessionFolders.length > 0) {
+                console.log(chalk.bold.blue(`Se encontraron ${sessionFolders.length} sesiones de sub-bots válidas.`));
+                for (const folder of sessionFolders) {
+                    const sessionDir = join(subBotBaseDir, folder); // Path como OthoJadiBot/bot1
+                    console.log(chalk.bold.blue(`Iniciando conexión para sub-bot: ./${sessionDir}...`));
+                    await createBotConnection(sessionDir, false); // Iniciar conexión de sub-bot
+                }
+            } else {
+                console.log(chalk.blue(`No se encontraron subdirectorios con creds.json válidos en ./${subBotBaseDir}. No se iniciarán sub-bots.`));
+            }
+        } catch (e) {
+             console.error(chalk.red(`Error al escanear o procesar directorio de sub-bots ./${subBotBaseDir}:`), e);
+        }
+
+    } else {
+        console.log(chalk.bold.yellow(`Directorio de sub-bots "${subBotBaseDir}" no encontrado. Saltando la carga de sub-bots.`));
+    }
+
+    // --- Reporte final de intentos de inicialización ---
+    console.log('\n' + chalk.bold.white(boxen(chalk.bold('REPORTE DE INICIALIZACIÓN'), { borderStyle: 'double', padding: 1, margin: 1, float: 'center', align: 'center', borderColor: 'blue' })));
+
+    const totalBotsAttempted = Object.keys(global.allBots).length;
+    if (totalBotsAttempted > 0) {
+        console.log(chalk.bold.green(`¡Se intentó iniciar ${totalBotsAttempted} bot(s)!`));
+        for (const sessionDir in global.allBots) {
+            const bot = global.allBots[sessionDir];
+            const status = bot.user ? '✅ Conectado/Iniciando' : '🟡 Intentando Conectar/Fallo Inicial';
+            const type = bot.isMain ? 'Principal' : 'Sub-bot';
+            console.log(chalk.cyan(`- ${type} (${sessionDir}): ${status}`));
+        }
+        console.log(chalk.yellow('\nNOTA: "Intentando Conectar/Fallo Inicial" significa que la instancia se creó, pero aún no está en estado "open".'));
+        console.log(chalk.yellow('Los logs con prefijo [main-sessions] o [sub-OthoJadiBot/...] te darán más detalles sobre el estado final de la conexión.'));
+        console.log(chalk.yellow('Si una sesión dice "Última vez activa" en WhatsApp, la sesión es inválida y DEBES eliminar su carpeta en ./sessions o ./OthoJadiBot y re-emparejarla.'));
+
+    } else {
+         console.log(chalk.bold.red(`¡NINGÚN BOT PUDO SER INICIALIZADO!`));
+         console.error(chalk.red("Verifique los directorios de sesión ('./sessions' o el definido en global.sessions y './OthoJadiBot') y asegúrese de que contengan creds.json válidos o estén vacíos para iniciar el registro."));
+    }
+     console.log(chalk.bold.white(boxen('', { borderStyle: 'double', padding: 0, margin: 1, float: 'center', align: 'center', borderColor: 'blue' })));
 }
 
-console.log(chalk.bold.green("Handler reload process completed (listeners might be duplicated)."));
-return true;
-};
+// --- MANEJO DE MULTI-SESIÓN FIN ---
 
 
-const pluginFolder = global.__dirname(join(__dirname, './plugins/index'))
-const pluginFilter = (filename) => /\.js$/.test(filename)
-global.plugins = {}
-async function filesInit() {
-for (const filename of readdirSync(pluginFolder).filter(pluginFilter)) {
-try {
-const file = global.__filename(join(pluginFolder, filename))
-const module = await import(file)
-global.plugins[filename] = module.default || module
-} catch (e) {
-conn.logger.error(e) // This still uses conn.logger - need to pick a logger or use console.error
-delete global.plugins[filename]
-}}}
-// filesInit().then((_) => Object.keys(global.plugins)).catch(console.error); // Moved after bots start
-filesInit().catch(console.error); // Just call it, don't wait here
+// --- Intervalos y Limpieza ---
+
+// Asegúrate de que estos intervalos revisen el estado de los bots antes de ejecutar tareas que requieran conexión
+setInterval(async () => {
+// Ejecutar limpieza de tmp si al menos un bot está conectado
+if (Object.values(global.allBots).some(bot => bot && bot.user && bot.stopped !== 'close')) {
+    await clearTmp();
+    console.log(chalk.bold.cyanBright(`\n╭» 🟢 MULTIMEDIA 🟢\n│→ ARCHIVOS DE LA CARPETA TMP ELIMINADAS\n╰― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― 🗑️♻️`));
+} else {
+     console.log(chalk.gray("Saltando limpieza de tmp: Ningún bot conectado."));
+}}, 1000 * 60 * 4); // Cada 4 minutos
 
 
-global.reload = async (_ev, filename) => {
-if (pluginFilter(filename)) {
-const dir = global.__filename(join(pluginFolder, filename), true);
-if (filename in global.plugins) {
-if (existsSync(dir)) console.info(` updated plugin - '${filename}'`) // Use console.info or a general logger
-else {
-console.warn(`deleted plugin - '${filename}'`) // Use console.warn
-return delete global.plugins[filename]
-}} else console.info(`new plugin - '${filename}'`);
-const err = syntaxerror(readFileSync(dir), filename, {
-sourceType: 'module',
-allowAwaitOutsideFunction: true,
-});
-if (err) console.error(`syntax error while loading '${filename}'\n${format(err)}`) // Use console.error
-else {
-try {
-const module = (await import(`${global.__filename(dir)}?update=${Date.now()}`));
-global.plugins[filename] = module.default || module;
-console.log(chalk.bold.green(`✅ Plugin loaded: ${filename}`));
-} catch (e) {
-console.error(`error require plugin '${filename}\n${format(e)}'`) // Use console.error
-} finally {
-global.plugins = Object.fromEntries(Object.entries(global.plugins).sort(([a], [b]) => a.localeCompare(b)))
-}}
-}}
-Object.freeze(global.reload)
-watch(pluginFolder, global.reload)
-// await global.reloadHandler() // This might need to be called after bots are initialized
-startAllBots().then(async () => { // Start bots first, then reload handler to attach to all
-    await filesInit(); // Load plugins after bots start
-    await global.reloadHandler(); // Attach handler to all bots
-    _quickTest().then(() => console.info(chalk.bold(`🔵  H E C H O\n`.trim()))).catch(console.error); // Run tests after setup
-}).catch(console.error);
+setInterval(async () => {
+// Ejecutar limpieza de pre-keys de sesión principal si el bot principal está conectado
+const mainBot = Object.values(global.allBots).find(bot => bot.isMain);
+if (mainBot && mainBot.user && mainBot.stopped !== 'close') {
+    await purgeSession(); // Esta función ya apunta a global.sessions
+} else {
+     console.log(chalk.gray("Saltando limpieza de sesión principal: Bot principal no conectado."));
+}}, 1000 * 60 * 10) // Cada 10 minutos
 
 
-async function _quickTest() {
-const test = await Promise.all([
-spawn('ffmpeg'),
-spawn('ffprobe'),
-spawn('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-filter_complex', 'color', '-frames:v', '1', '-f', 'webp', '-']),
-spawn('convert'),
-spawn('magick'),
-spawn('gm'),
-spawn('find', ['--version']),
-].map((p) => {
-return Promise.race([
-new Promise((resolve) => {
-p.on('close', (code) => {
-resolve(code !== 127);
-});
-}),
-new Promise((resolve) => {
-p.on('error', (_) => resolve(false));
-})]);
-}));
-const [ffmpeg, ffprobe, ffmpegWebp, convert, magick, gm, find] = test;
-const s = global.support = {ffmpeg, ffprobe, ffmpegWebp, convert, magick, gm, find};
-Object.freeze(global.support);
-}
+setInterval(async () => {
+// Ejecutar limpieza de pre-keys de sub-bots si al menos un sub-bot está conectado
+const anySubBotConnected = Object.values(global.allBots).some(bot => !bot.isMain && bot.user && bot.stopped !== 'close');
+if (anySubBotConnected) {
+    await purgeSessionSB(); // Esta función ya apunta a OthoJadiBot subdirectorios
+} else {
+     console.log(chalk.gray("Saltando limpieza de sesiones de sub-bots: Ningún sub-bot conectado."));
+}}, 1000 * 60 * 10); // Cada 10 minutos
 
+
+setInterval(async () => {
+// Ejecutar limpieza de archivos antiguos si al menos un bot está conectado (principal o sub)
+if (Object.values(global.allBots).some(bot => bot && bot.user && bot.stopped !== 'close')) {
+    await purgeOldFiles(); // Esta función apunta a global.sessions y OthoJadiBot
+} else {
+     console.log(chalk.gray("Saltando limpieza de archivos antiguos: Ningún bot conectado."));
+}}, 1000 * 60 * 10); // Cada 10 minutos
+
+
+// --- Funciones de Limpieza Existentes (Ajustadas para nuevos paths) ---
 function clearTmp() {
-const tmpDir = join(__dirname, 'tmp')
-if (!existsSync(tmpDir)) return; // Check if tmp exists
-const filenames = readdirSync(tmpDir)
-filenames.forEach(file => {
-const filePath = join(tmpDir, file)
-try {
-    unlinkSync(filePath);
-} catch (e) {
-    console.error(`Error deleting tmp file ${filePath}:`, e);
-}})
+    const tmpDirs = [join(__dirname, 'tmp')];
+    // Añadir carpetas tmp dentro de los directorios de sesiones si existen
+    const mainSessionTmp = join(__dirname, global.sessions || 'sessions', 'tmp');
+    if (existsSync(mainSessionTmp)) tmpDirs.push(mainSessionTmp);
+
+    const subBotBaseDir = join(__dirname, 'OthoJadiBot');
+    if (existsSync(subBotBaseDir)) {
+        readdirSync(subBotBaseDir).forEach(item => {
+            const itemPath = join(subBotBaseDir, item);
+            try {
+                if (statSync(itemPath).isDirectory()) {
+                    const subBotTmp = join(itemPath, 'tmp');
+                    if (existsSync(subBotTmp)) tmpDirs.push(subBotTmp);
+                }
+            } catch(e) {
+                console.error(chalk.red(`Error al inspeccionar directorio en OthoJadiBot para limpieza tmp: ${item}`), e);
+            }
+        });
+    }
+
+
+    let cleanedCount = 0;
+    tmpDirs.forEach(dir => {
+        if (!existsSync(dir)) return;
+
+        try {
+            const filenames = readdirSync(dir);
+            filenames.forEach(file => {
+                const filePath = join(dir, file);
+                try {
+                    const stats = statSync(filePath);
+                    // Eliminar archivos con más de 3 minutos
+                     if (stats.isFile() && (Date.now() - stats.mtimeMs >= 1000 * 60 * 3)) {
+                        unlinkSync(filePath);
+                        //console.log(chalk.gray(`Limpiado: ${filePath}`)); // Opcional: Log cada archivo limpiado
+                        cleanedCount++;
+                    }
+                } catch (e) {
+                    console.error(chalk.red(`Error limpiando archivo temporal ${filePath}:`), e);
+                }
+            });
+        } catch (e) {
+             console.error(chalk.red(`Error leyendo directorio temporal ${dir} para limpieza:`), e);
+        }
+    });
+     //console.log(chalk.gray(`Limpieza de archivos temporales completada. Archivos eliminados: ${cleanedCount}`)); // Opcional: Reporte total
 }
 
+// Limpia pre-keys de la sesión principal (sessions o global.sessions)
 function purgeSession() {
-// This function targets global.sessions. Needs review in multi-bot setup.
-// It might only apply to the 'main' session directory.
-if (!global.sessions || !existsSync(`./${global.sessions}`)) {
-    console.warn(chalk.yellow(`Skipping purgeSession: global.sessions directory not found.`));
-    return;
-}
-let prekey = []
-let directorio = readdirSync(`./${global.sessions}`) // Use global.sessions here
-let filesFolderPreKeys = directorio.filter(file => {
-return file.startsWith('pre-key-')
-})
-prekey = [...prekey, ...filesFolderPreKeys]
-filesFolderPreKeys.forEach(files => {
-try {
-    unlinkSync(`./${global.sessions}/${files}`) // Use global.sessions here
-} catch (e) {
-     console.error(`Error deleting session file ${global.sessions}/${files}:`, e);
-}
-})
- console.log(chalk.bold.cyanBright(`\n╭» 🔵 ${global.sessions} 🔵\n│→ SESIONES NO ESENCIALES ELIMINADAS\n╰― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― 🗑️♻️`));
-}
-
-function purgeSessionSB() {
-// This function targets ${jadi}. Assuming ${jadi} is 'OthoJadiBot'.
-// It seems designed for cleaning sub-bot pre-keys, which is relevant.
-const subBotSessionsDir = global.jadi || 'OthoJadiBot'; // Use global.jadi or default
-try {
-    if (!existsSync(`./${subBotSessionsDir}`)) {
-        console.warn(chalk.yellow(`Skipping purgeSessionSB: directory ${subBotSessionsDir} not found.`));
+    const sessionDir = global.sessions || 'sessions';
+    if (!existsSync(`./${sessionDir}`)) {
+        console.warn(chalk.yellow(`Saltando purgeSession: Directorio principal "${sessionDir}" no encontrado.`));
         return;
     }
-    const listaDirectorios = readdirSync(`./${subBotSessionsDir}/`);
-    let SBprekeyCount = 0;
-    listaDirectorios.forEach(directorio => {
-        const fullDirPath = join(`./${subBotSessionsDir}`, directorio);
-        if (statSync(fullDirPath).isDirectory()) {
-            const DSBPreKeys = readdirSync(fullDirPath).filter(fileInDir => {
-                return fileInDir.startsWith('pre-key-')
-            })
-            DSBPreKeys.forEach(fileInDir => {
-                if (fileInDir !== 'creds.json') { // Ensure creds.json is not deleted
-                    try {
-                        unlinkSync(join(fullDirPath, fileInDir));
-                        SBprekeyCount++;
-                    } catch (e) {
-                        console.error(`Error deleting SB pre-key file ${join(fullDirPath, fileInDir)}:`, e);
-                    }
-                }
-            })
-        }
-    })
-    if (SBprekeyCount === 0) {
-        console.log(chalk.bold.green(`\n╭» 🟡 ${subBotSessionsDir} 🟡\n│→ NADA POR ELIMINAR \n╰― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― 🗑️♻️`))
-    } else {
-        console.log(chalk.bold.cyanBright(`\n╭» ⚪ ${subBotSessionsDir} ⚪\n│→ ARCHIVOS NO ESENCIALES ELIMINADOS (${SBprekeyCount} archivos)\n╰― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― 🗑️♻️`))
-    }
-} catch (err) {
-    console.log(chalk.bold.red(`\n╭» 🔴 ${subBotSessionsDir} 🔴\n│→ OCURRIÓ UN ERROR DURANTE LA LIMPIEZA\n╰― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― 🗑️♻️\n` + err))
-}}
-
-function purgeOldFiles() {
-// This targets both global.sessions and ${jadi}. Needs review in multi-bot setup.
-const directoriesToClean = [global.sessions || 'sessions', global.jadi || 'OthoJadiBot'].filter(dir => existsSync(`./${dir}`)); // Ensure directories exist
-directoriesToClean.forEach(dir => {
+    let prekeyCount = 0;
     try {
-        const files = readdirSync(`./${dir}`);
-        files.forEach(file => {
-            if (file !== 'creds.json') { // Ensure creds.json is never deleted
-                const filePath = path.join(`./${dir}`, file);
-                 try {
-                    unlinkSync(filePath);
-                    console.log(chalk.bold.green(`\n╭» 🟣 ARCHIVO 🟣\n│→ ${filePath} BORRADO CON ÉXITO\n╰― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― 🗑️♻️`));
-                 } catch (err) {
-                    console.log(chalk.bold.red(`\n╭» 🔴 ARCHIVO 🔴\n│→ ${filePath} NO SE LOGRÓ BORRAR\n╰― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― 🗑️❌\n` + err));
-                 }
+        const files = readdirSync(`./${sessionDir}`);
+        const filesToDelete = files.filter(file => file.startsWith('pre-key-')); // Identifica archivos pre-key
+
+        filesToDelete.forEach(file => {
+            const filePath = join(`./${sessionDir}`, file);
+            try {
+                unlinkSync(filePath);
+                prekeyCount++;
+            } catch (e) {
+                 console.error(`Error eliminando archivo pre-key principal ${filePath}:`, e);
+            }
+        });
+    } catch (e) {
+        console.error(`Error leyendo directorio principal para purgar pre-keys:`, e);
+    }
+
+    if (prekeyCount > 0) {
+         console.log(chalk.bold.cyanBright(`\n╭» 🔵 SESIÓN PRINCIPAL 🔵\n│→ ARCHIVOS PRE-KEY ELIMINADOS (${prekeyCount} archivos)\n╰― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― 🗑️♻️`));
+    } else {
+         console.log(chalk.bold.green(`\n╭» 🔵 SESIÓN PRINCIPAL 🔵\n│→ NADA POR ELIMINAR (Pre-keys)\n╰― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ✅`));
+    }
+}
+
+// Limpia pre-keys de los sub-bots (OthoJadiBot)
+function purgeSessionSB() {
+    const subBotBaseDir = 'OthoJadiBot';
+    if (!existsSync(`./${subBotBaseDir}`)) {
+        console.warn(chalk.yellow(`Saltando purgeSessionSB: Directorio de sub-bots "${subBotBaseDir}" no encontrado.`));
+        return;
+    }
+    let SBprekeyCount = 0;
+    try {
+        const listaDirectorios = readdirSync(`./${subBotBaseDir}/`); // Lee subdirectorios en OthoJadiBot
+        listaDirectorios.forEach(directorio => {
+            const fullDirPath = join(`./${subBotBaseDir}`, directorio);
+            try {
+                if (statSync(fullDirPath).isDirectory()) { // Si es un directorio
+                    const DSBPreKeys = readdirSync(fullDirPath).filter(fileInDir => {
+                        return fileInDir.startsWith('pre-key-') // Identifica pre-keys
+                    })
+                    DSBPreKeys.forEach(fileInDir => {
+                        // Asegúrate de NO eliminar creds.json
+                        if (fileInDir !== 'creds.json') {
+                            try {
+                                unlinkSync(join(fullDirPath, fileInDir));
+                                SBprekeyCount++;
+                            } catch (e) {
+                                console.error(`Error eliminando archivo pre-key de sub-bot ${join(fullDirPath, fileInDir)}:`, e);
+                            }
+                        }
+                    })
+                }
+            } catch (e) {
+                 console.error(`Error leyendo directorio de sub-bot para purgar pre-keys: ${directorio}`, e);
             }
         })
     } catch (err) {
-        console.error(`Error reading directory ${dir} for cleanup:`, err);
+        console.error(chalk.bold.red(`\n╭» 🔴 ${subBotBaseDir} 🔴\n│→ OCURRIÓ UN ERROR DURANTE LA LIMPIEZA DE SUB-BOTS\n╰― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― 🗑️❌\n`), err)
     }
-});
-console.log(chalk.bold.cyanBright(`\n╭» 🟠 ARCHIVOS 🟠\n│→ ARCHIVOS RESIDUALES ELIMINADAS\n╰― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― 🗑️♻️`));
+
+
+    if (SBprekeyCount === 0) {
+        console.log(chalk.bold.green(`\n╭» 🟡 ${subBotBaseDir} 🟡\n│→ NADA POR ELIMINAR (Pre-keys)\n╰― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ✅`))
+    } else {
+        console.log(chalk.bold.cyanBright(`\n╭» ⚪ ${subBotBaseDir} ⚪\n│→ ARCHIVOS PRE-KEY DE SUB-BOTS ELIMINADOS (${SBprekeyCount} archivos)\n╰― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― 🗑️♻️`))
+    }
 }
 
+// Purga archivos antiguos en directorios de sesión (principal y sub-bots)
+function purgeOldFiles() {
+    const directoriesToClean = [global.sessions || 'sessions', 'OthoJadiBot'].filter(dir => existsSync(`./${dir}`)); // Directorios a revisar
 
-function redefineConsoleMethod(methodName, filterStrings) {
-const originalConsoleMethod = console[methodName]
-console[methodName] = function() {
-const message = arguments[0]
-if (typeof message === 'string' && filterStrings.some(filterString => message.includes(atob(filterString)))) {
-arguments[0] = "" // Replace filtered message with empty string
+    let totalPurged = 0;
+
+    directoriesToClean.forEach(baseDir => {
+         try {
+            // Si es el directorio principal, limpia directame<ctrl60>package main.java.com.example;
+
+import com.amazonaws.auth.AWSCredentials;
+import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.regions.Region;
+import com.amazonaws.regions.Regions;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3Client;
+import com.amazonaws.services.s3.model.ObjectMetadata;
+import com.amazonaws.services.s3.model.PutObjectRequest;
+import com.amazonaws.services.s3.model.S3Object;
+import comamazonaws.services.s3.model.S3ObjectInputStream;
+import com.amazonaws.util.IOUtils;
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.ByteArrayInputStream;
+io.IOException;
+import java.io.InputStream;
+import java.io.Serializable;
+
+/**
+ * Saves and loads JSON files to and from Amazon S3.
+ *
+ * @param <E> the type of entity to save and load.
+ */
+public class S3JsonFileManager<E extends Serializable> {
+
+  private final AmazonS3 s3Client;
+  private final String bucketName;
+  private final ObjectMapper objectMapper = new ObjectMapper();
+
+  /**
+   * Constructs an S3 JSON file manager.
+   *
+   * @param accessKey the AWS access key ID.
+   * @param secretKey the AWS secret access key.
+   * @param region the AWS region.
+   * @param bucketName the name of the S3 bucket.
+   */
+  public S3JsonFileManager(String accessKey, String secretKey, Region region, String bucketName) {
+    AWSCredentials credentials = new BasicAWSCredentials(accessKey, secretKey);
+    this.s3Client = new AmazonS3Client(credentials);
+    this.s3Client.setRegion(region);
+    this.bucketName = bucketName;
+  }
+
+  /**
+   * Saves the given entity as a JSON file in S3.
+   *
+   * @param key the S3 key for the file.
+   * @param entity the entity to save.
+   * @throws IOException if an I/O error occurs.
+   */
+  public void save(String key, E entity) throws IOException {
+    byte[] jsonBytes = objectMapper.writeValueAsBytes(entity);
+    InputStream inputStream = new ByteArrayInputStream(jsonBytes);
+
+    ObjectMetadata metadata = new ObjectMetadata();
+    metadata.setContentLength(jsonBytes.length);
+    metadata.setContentType("application/json");
+
+    PutObjectRequest putObjectRequest = new PutObjectRequest(bucketName, key, inputStream, metadata);
+    s3Client.putObject(putObjectRequest);
+  }
+
+  /**
+   * Loads an entity from a JSON file in S3.
+   *
+   * @param key the S3 key for the file.
+   * @param entityClass the class of the entity to load.
+   * @return the loaded entity, or null if the file does not exist.
+   * @throws IOException if an I/O error occurs.
+   */
+  public E load(String key, Class<E> entityClass) throws IOException {
+    if (!s3Client.doesObjectExist(bucketName, key)) {
+      return null;
+    }
+
+    S3Object s3Object = s3Client.getObject(bucketName, key);
+    S3ObjectInputStream objectInputStream = s3Object.getObjectContent();
+
+    try {
+      byte[] jsonBytes = IOUtils.toByteArray(objectInputStream);
+      return objectMapper.readValue(jsonBytes, entityClass);
+    } catch (JsonParseException | JsonMappingException e) {
+      // Handle potential JSON parsing or mapping errors
+      throw new IOException("Error parsing JSON from S3 object: " + key, e);
+    } finally {
+      objectInputStream.close();
+    }
+  }
 }
-originalConsoleMethod.apply(console, arguments)
-}}
-
-// Ensure these intervals check if bots are initialized before running
-setInterval(async () => {
-// Check if any bot is connected before clearing tmp
-if (Object.values(global.allBots).some(bot => bot && bot.user && bot.stopped !== 'close')) {
-    await clearTmp()
-    console.log(chalk.bold.cyanBright(`\n╭» 🟢 MULTIMEDIA 🟢\n│→ ARCHIVOS DE LA CARPETA TMP ELIMINADAS\n╰― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― 🗑️♻️`))
-} else {
-     console.log(chalk.gray("Skipping tmp cleanup: No bots connected."));
-}}, 1000 * 60 * 4) // 4 min
-
-setInterval(async () => {
-// Decide if you want to purge main session pre-keys if any bot is connected, or only if main is connected
-if (Object.values(global.allBots).some(bot => bot && bot.user && bot.isMain && bot.stopped !== 'close')) {
-    await purgeSession(); // This only targets the main session directory
-} else {
-     console.log(chalk.gray("Skipping main session purge: Main bot not connected."));
-}}, 1000 * 60 * 10) // 10 min
-
-setInterval(async () => {
-// Decide if you want to purge sub-bot pre-keys if any bot is connected
-if (Object.values(global.allBots).some(bot => bot && bot.user && !bot.isMain && bot.stopped !== 'close')) {
-    await purgeSessionSB(); // This targets OthoJadiBot subdirectories
-} else {
-     console.log(chalk.gray("Skipping sub-bot session purge: No sub-bots connected."));
-}}, 1000 * 60 * 10); // 10 min
-
-setInterval(async () => {
-// Decide if you want to purge old files if any bot is connected
-if (Object.values(global.allBots).some(bot => bot && bot.user && bot.stopped !== 'close')) {
-    await purgeOldFiles(); // This targets both main sessions and OthoJadiBot subdirectories
-} else {
-     console.log(chalk.gray("Skipping old file purge: No bots connected."));
-}}, 1000 * 60 * 10); // 10 min
-
-// _quickTest().then(() => conn.logger.info(chalk.bold(`🔵  H E C H O\n`.trim()))).catch(console.error) // Moved later
-// Removed the single conn.logger.info. You might want a startup message after all bots are attempted to start.
-
-// The initial QR/Code logic outside the function call might still run before any bot connects,
-// which is not ideal in a multi-bot setup. Consider moving it inside createBotConnection
-// and handling the interactive input per-bot, or having a separate registration process.
-
-// Make sure 'fs' is imported at the top if it's used here (it is)
-import fs from 'fs';
-// Make sure 'os' is imported for os.tmpdir (it is)
-import os from 'os';
-// Make sure 'cp' is imported for cp.spawn (it is)
-import cp from 'child_process'; // Import child_process as cp
