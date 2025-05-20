@@ -79,6 +79,7 @@ global.db.chain = chain(global.db.data)
 }
 loadDatabase()
 
+// Main Bot Connection Setup
 const {state, saveState, saveCreds} = await useMultiFileAuthState(global.sessions)
 const msgRetryCounterMap = (MessageRetryMap) => { };
 const msgRetryCounterCache = new NodeCache()
@@ -98,13 +99,13 @@ let opcion
 if (methodCodeQR) {
 opcion = '1'
 }
-if (!methodCodeQR && !methodCode && !fs.existsSync(`./${sessions}/creds.json`)) {
+if (!methodCodeQR && !methodCode && !existsSync(`./${sessions}/creds.json`)) {
 do {
 opcion = await question(colores('Seleccione una opción:\n') + opcionQR('1. Con código QR\n') + opcionTexto('2. Con código de texto de 8 dígitos\n--> '))
 
 if (!/^[1-2]$/.test(opcion)) {
 console.log(chalk.bold.redBright(`🍭 No se permiten numeros que no sean 1 o 2, tampoco letras o símbolos especiales.`))
-}} while (opcion !== '1' && opcion !== '2' || fs.existsSync(`./${sessions}/creds.json`))
+}} while (opcion !== '1' && opcion !== '2' || existsSync(`./${sessions}/creds.json`))
 } 
 
 const filterStrings = [
@@ -144,7 +145,7 @@ version: [2, 3000, 1015901307],
 
 global.conn = makeWASocket(connectionOptions);
 
-if (!fs.existsSync(`./${sessions}/creds.json`)) {
+if (!existsSync(`./${sessions}/creds.json`)) {
 if (opcion === '2' || methodCode) {
 
 opcion = '2'
@@ -434,3 +435,108 @@ await purgeOldFiles()
 console.log(chalk.bold.cyanBright(`\n╭» 🟠 ARCHIVOS 🟠\n│→ ARCHIVOS RESIDUALES ELIMINADAS\n╰― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― 🗑️♻️`))}, 1000 * 60 * 10)
 
 _quickTest().then(() => conn.logger.info(chalk.bold(`🔵  H E C H O\n`.trim()))).catch(console.error)
+
+// --- Sub-bot Reconnection Logic ---
+global.subBots = []; // Array to store sub-bot connections
+
+async function connectSubBots() {
+    const subBotDir = `./OthoJadiBot`;
+    if (!existsSync(subBotDir)) {
+        console.log(chalk.bold.yellow(`\nℹ️ La carpeta ${subBotDir} no existe. No se buscarán sub-bots.`));
+        return;
+    }
+
+    const subDirs = readdirSync(subBotDir, { withFileTypes: true })
+        .filter(dirent => dirent.isDirectory())
+        .map(dirent => dirent.name);
+
+    if (subDirs.length === 0) {
+        console.log(chalk.bold.yellow(`\nℹ️ No se encontraron sub-bots en la carpeta ${subBotDir}.`));
+        return;
+    }
+
+    console.log(chalk.bold.magenta(`\n🚀 Conectando ${subDirs.length} sub-bots desde ${subBotDir}...`));
+
+    for (const dirName of subDirs) {
+        const sessionPath = join(subBotDir, dirName);
+        const credsFile = join(sessionPath, 'creds.json');
+
+        if (!existsSync(credsFile)) {
+            console.log(chalk.bold.red(`\n❌ La sesión para el sub-bot en ${dirName} no tiene un archivo creds.json.`));
+            continue;
+        }
+
+        try {
+            const { state: subState, saveState: subSaveState, saveCreds: subSaveCreds } = await useMultiFileAuthState(sessionPath);
+            
+            const subConnectionOptions = {
+                ...connectionOptions, // Inherit base options
+                auth: {
+                    creds: subState.creds,
+                    keys: makeCacheableSignalKeyStore(subState.keys, Pino({ level: "fatal" }).child({ level: "fatal" })),
+                },
+                logger: pino({ level: 'silent', msgPrefix: `[${dirName}] ` }), // Unique logger for each sub-bot
+            };
+
+            const subConn = makeWASocket(subConnectionOptions);
+            global.subBots.push(subConn);
+
+            subConn.ev.on('connection.update', (update) => subBotConnectionUpdate(update, dirName, subConn));
+            subConn.ev.on('creds.update', subSaveCreds);
+            subConn.ev.on('messages.upsert', handler.handler.bind(subConn)); // Attach main handler to sub-bots
+
+            console.log(chalk.bold.green(`\n✅ Sub-bot en ${dirName} iniciado con éxito.`));
+        } catch (error) {
+            console.error(chalk.bold.red(`\n❗ Error al conectar el sub-bot en ${dirName}:`), error);
+        }
+    }
+}
+
+async function subBotConnectionUpdate(update, subBotName, subConn) {
+    const { connection, lastDisconnect, isNewLogin } = update;
+    if (isNewLogin) subConn.isInit = true;
+
+    const code = lastDisconnect?.error?.output?.statusCode || lastDisconnect?.error?.output?.payload?.statusCode;
+
+    if (connection === 'open') {
+        console.log(boxen(chalk.bold(` ¡SUB-BOT "${subBotName.toUpperCase()}" CONECTADO! `), { borderStyle: 'round', borderColor: 'green', title: chalk.green.bold('● CONEXIÓN SUB-BOT ●'), titleAlignment: '', float: '' }));
+    } else if (connection === 'close') {
+        let reason = new Boom(lastDisconnect?.error)?.output?.statusCode;
+        console.log(chalk.bold.redBright(`\n⚠️ Sub-bot "${subBotName.toUpperCase()}" desconectado. Razón: ${reason || 'Desconocida'}.`));
+        if (reason === DisconnectReason.loggedOut) {
+            console.log(chalk.bold.redBright(`\n⚠️ SIN CONEXIÓN para sub-bot "${subBotName.toUpperCase()}", BORRE LA CARPETA ./${jadi}/${subBotName} Y VUELVA A ESCANEAR EL CÓDIGO QR ⚠️`));
+            // You might want to remove the sub-bot from global.subBots here
+        } else {
+            console.log(chalk.bold.blueBright(`\n🔁 Intentando reconectar sub-bot "${subBotName.toUpperCase()}"...`));
+            // Reconnect logic for sub-bots (similar to main bot's reloadHandler but for the specific sub-bot)
+            try {
+                // This is a simplified reconnection. For a more robust solution, you might
+                // need a dedicated `reloadSubBotHandler` function or a more complex loop.
+                const { state: subState, saveCreds: subSaveCreds } = await useMultiFileAuthState(join(`./OthoJadiBot`, subBotName));
+                const subConnectionOptions = {
+                    ...connectionOptions,
+                    auth: {
+                        creds: subState.creds,
+                        keys: makeCacheableSignalKeyStore(subState.keys, Pino({ level: "fatal" }).child({ level: "fatal" })),
+                    },
+                    logger: pino({ level: 'silent', msgPrefix: `[${subBotName}] ` }),
+                };
+                subConn.ev.removeAllListeners();
+                const newSubConn = makeWASocket(subConnectionOptions);
+                // Replace the old connection with the new one in global.subBots
+                const index = global.subBots.indexOf(subConn);
+                if (index > -1) {
+                    global.subBots[index] = newSubConn;
+                }
+                newSubConn.ev.on('connection.update', (update) => subBotConnectionUpdate(update, subBotName, newSubConn));
+                newSubConn.ev.on('creds.update', subSaveCreds);
+                newSubConn.ev.on('messages.upsert', handler.handler.bind(newSubConn));
+            } catch (e) {
+                console.error(chalk.bold.red(`\n❌ Fallo la reconexión para el sub-bot "${subBotName.toUpperCase()}":`), e);
+            }
+        }
+    }
+}
+
+// Call this function when the main bot starts up
+connectSubBots().catch(console.error);
