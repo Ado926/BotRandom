@@ -35,7 +35,7 @@ const bot = global.db.data.settings[conn.user.jid] || {};
 
   async function serbot() {
     let authFolderB = m.sender.split('@')[0];
-    const userFolderPath = `./serbot/${authFolderB}`;
+    const userFolderPath = `./OthoJadiBot/${authFolderB}`;
 
     if (!fs.existsSync(userFolderPath)) {
       fs.mkdirSync(userFolderPath, { recursive: true });
@@ -128,7 +128,7 @@ const bot = global.db.data.settings[conn.user.jid] || {};
         if (args[0]) return;
 
         await parent.reply(conn.user.jid, `La siguiente vez que quiera un código nuevo coloque .delsesion y de nuevo .code `, m);
-        await parent.sendMessage(conn.user.jid, { text: usedPrefix + command + " " + Buffer.from(fs.readFileSync(`./CrowJadiBot/${authFolderB}/creds.json`), "utf-8").toString("base64") }, { quoted: m });
+        await parent.sendMessage(conn.user.jid, { text: usedPrefix + command + " " + Buffer.from(fs.readFileSync(`./OthoJadiBot/${authFolderB}/creds.json`), "utf-8").toString("base64") }, { quoted: m });
       }
     }
 
