@@ -101,7 +101,7 @@ let fkontak = { "key": { "participants":"0@s.whatsapp.net", "remoteJid": "status
 // ---- INICIO DEL MENÚ REDISEÑADO ----
 let menu = `
 ┏━═━═━═━═━═━═━═━═━═┓
-┃ > 🪴 *The Michi - MD* ☕
+┃  🪴 *The Michi - MD* ☕
 ┣━═━═━═━═━═━═━═━═━═┛
 ┃
 ┃ 🐾 ¡Hola, ${name}!
@@ -109,15 +109,15 @@ let menu = `
 ┃ ╭─────────────╮
 ┃ │ 🗓️ \`Fecha:\` ${date}
 ┃ │ ⏰ \`Hora:\` ${time}
-┃ │ ⏳ \`Activo Hace:\` ${uptime}
+┃ │ 🕓 \`Activo Hace:\` ${uptime}
 ┃ │ 👥 \`Usuarios:\` ${totalreg}
-┃ │ 🏆 \`Nivel:\` ${level} | 🌟 XP: ${exp}
+┃ │ 🍁 \`Nivel:\` ${level} | 🌟 XP: ${exp}
 ┃ ╰─────────────╯
 ┃
-┃ > 🐱 *Creador:* Wirk
-┃ > 🌎 *País:* Honduras 💣
-┃ > 🖥️ *Terminal:* Linux
-┃ > 📚 *Librería:* MekBaileys
+┃> 🐱 *Creador:* Wirk
+┃> 🌎 *País:* Honduras 💣
+┃> 🖥️ *Terminal:* Linux
+┃> 📚 *Librería:* MekBaileys
 ┣━═━═━═━═━═━═━═━═━═┓
 ┃  *📚 Menu de Comandos*
 ┗━═━═━═━═━═━═━══━═━┛
