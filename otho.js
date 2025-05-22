@@ -23,7 +23,7 @@ import {Low, JSONFile} from 'lowdb'
 import {mongoDB, mongoDBV2} from './lib/mongoDB.js'
 import store from './lib/store.js'
 const {proto} = (await import('@whiskeysockets/baileys')).default
-const {DisconnectReason, useMultiFileAuthState, MessageRetryMap, fetchLatestBaileysVersion, makeCacheableSignalKeyStore, jidNormalizedUser, PHONENUMBER_MCC} = await import('@whiskeysockets/baileys')
+const {DisconnectReason, useMultiFileAuthState, MessageRetryMap, fetchLatestBaileysVersion, makeCacheableSignalKeyStore, jidNormalizedUser, PHONENUMBER_MCC: BAILEYS_PHONENUMBER_MCC} = await import('@whiskeysockets/baileys')
 import readline from 'readline'
 import NodeCache from 'node-cache'
 const {CONNECTING} = ws
@@ -143,6 +143,19 @@ version: [2, 3000, 1015901307],
 }
 
 global.conn = makeWASocket(connectionOptions);
+
+// --- Fallback for PHONENUMBER_MCC if it's undefined from Baileys ---
+const PHONENUMBER_MCC = BAILEYS_PHONENUMBER_MCC || {
+    '1': 'US, CA',   // United States, Canada
+    '44': 'GB',      // United Kingdom
+    '52': 'MX',      // Mexico
+    '54': 'AR',      // Argentina
+    '55': 'BR',      // Brazil
+    '34': 'ES',      // Spain
+    '91': 'IN',      // India
+    '504': 'HN',     // Honduras (added as example for current location)
+    // Add more as needed or retrieve a comprehensive list if available
+};
 
 if (!fs.existsSync(`./${sessions}/creds.json`)) {
 if (opcion === '2' || methodCode) {
