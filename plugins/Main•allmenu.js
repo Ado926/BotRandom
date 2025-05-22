@@ -101,7 +101,7 @@ let fkontak = { "key": { "participants":"0@s.whatsapp.net", "remoteJid": "status
 // ---- INICIO DEL MENÚ REDISEÑADO ----
 let menu = `
 ┏━═━═━═━═━═━═━═━═━═┓
-┃  🪴 *The Michi - MD* ☕
+┃ > 🪴 *The Michi - MD* ☕
 ┣━═━═━═━═━═━═━═━═━═┛
 ┃
 ┃ 🐾 ¡Hola, ${name}!
@@ -114,15 +114,15 @@ let menu = `
 ┃ │ 🏆 \`Nivel:\` ${level} | 🌟 XP: ${exp}
 ┃ ╰─────────────╯
 ┃
-┃ 🐱 *Creador:* Wirk
-┃ 🌎 *País:* Honduras 💣
-┃ 🖥️ *Terminal:* Linux
-┃ 📚 *Librería:* Baileys
+┃ > 🐱 *Creador:* Wirk
+┃ > 🌎 *País:* Honduras 💣
+┃ > 🖥️ *Terminal:* Linux
+┃ > 📚 *Librería:* MekBaileys
 ┣━═━═━═━═━═━═━═━═━═┓
-┃   📚 Menu de Comandos
-┗━═━═━═━═━═━═━═━═━═━┛
+┃  *📚 Menu de Comandos*
+┗━═━═━═━═━═━═━══━═━┛
 
-🍄 \`URL:\` https://play-youtubedescargas.vercel.app/
+> 🍄 \`URL:\` https://play-youtubedescargas.vercel.app/
 
 📜 *Información Bot*
 ☁️ .owner
@@ -131,13 +131,20 @@ let menu = `
 ☁️ .sistema
 ☁️ ️.uptime
 
+☔ *Comandos mas usados*
+🪴 .play
+🌴 .ytmp3 
+🪴 .ytmp4 
+🪴 .tt
+
 📥 *Downloaders*
+🍄 .play 
 🍄 .facebook
 🍄 .ytmp3
 🍄 .ytmp4
 🍄 .tiktok
 🍄 .tiktokimg
-🍄 .Spotifydl
+🍄 .spotifydl
 🍄 .applemusicdl
 🍄 .clouddl
 🍄 .pinterestdl
