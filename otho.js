@@ -346,9 +346,10 @@ async function connectAllSubBots() {
 
 // Main bot connection update handler
 async function connectionUpdate(update) {
-    const { connection, lastDisconnect, isNewLogin } = update;
+    const { connection, lastDisconnect } = update;
     global.stopped = connection;
-    if (isNewLogin) global.conn.isInit = true; // Use global.conn consistently
+    // Removed isNewLogin check for global.conn.isInit to simplify, as it's not strictly necessary here.
+    // If you explicitly need `conn.isInit` for other logic, ensure it's set correctly.
 
     const code = lastDisconnect?.error?.output?.statusCode || lastDisconnect?.error?.output?.payload?.statusCode;
 
@@ -363,11 +364,11 @@ async function connectionUpdate(update) {
             console.log(chalk.bold.yellow(`\n✅ ESCANEA EL CÓDIGO QR EXPIRA EN 45 SEGUNDOS`));
         }
     }
+
     if (connection == 'open') {
         console.log(boxen(chalk.bold(' ¡CONECTADO CON WHATSAPP! '), { borderStyle: 'round', borderColor: 'green', title: chalk.green.bold('● CONEXIÓN ●'), titleAlignment: '', float: '' }));
-        if (isNewLogin) { // Only attempt to connect sub-bots on initial successful login
-            await connectAllSubBots();
-        }
+        // Call connectAllSubBots every time the main bot connects successfully
+        await connectAllSubBots();
     }
     let reason = new Boom(lastDisconnect?.error)?.output?.statusCode;
     if (connection === 'close') {
@@ -426,8 +427,7 @@ global.reloadHandler = async function(restatConn) {
     global.conn.credsUpdate = saveCreds.bind(global.conn, true); // Ensure this is defined
 
     const currentDateTime = new Date();
-    // The line `const messageDateTime = new Date(conn.ev)` is likely incorrect.
-    // conn.ev is an EventEmitter, not a date. Removed the comparison as it won't work as intended.
+    // The line `const messageDateTime = new Date(conn.ev)` was removed as `conn.ev` is an EventEmitter, not a date.
     // The following chat filtering logic seems detached from a real-time message event anyway.
     // If you need to process chats based on time, you'd need a different mechanism.
 
